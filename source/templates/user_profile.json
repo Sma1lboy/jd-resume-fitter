@@ -1,0 +1,75 @@
+{
+  "name": "John Doe",
+  "title": "Software Engineer",
+  "email": "john.doe@example.com",
+  "phone": "+1 (123) 456-7890",
+  "location": "San Francisco, CA",
+  "linkedin": "linkedin.com/in/johndoe",
+  "github": "github.com/johndoe",
+  "website": "johndoe.com",
+  "summary": "Experienced software engineer with a passion for building scalable web applications and solving complex problems.",
+  "skills": [
+    "JavaScript",
+    "TypeScript",
+    "React",
+    "Node.js",
+    "Python",
+    "SQL",
+    "AWS",
+    "Docker",
+    "Git",
+    "CI/CD"
+  ],
+  "experience": [
+    {
+      "company": "Tech Company",
+      "title": "Senior Software Engineer",
+      "location": "San Francisco, CA",
+      "startDate": "2020-01",
+      "endDate": "Present",
+      "highlights": [
+        "Led the development of a new feature that increased user engagement by 30%",
+        "Mentored junior developers and conducted code reviews",
+        "Implemented CI/CD pipeline that reduced deployment time by 50%"
+      ]
+    },
+    {
+      "company": "Startup Inc.",
+      "title": "Software Engineer",
+      "location": "San Francisco, CA",
+      "startDate": "2018-03",
+      "endDate": "2019-12",
+      "highlights": [
+        "Developed and maintained RESTful APIs using Node.js",
+        "Built responsive web applications using React",
+        "Collaborated with cross-functional teams to deliver features on time"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "University of California, Berkeley",
+      "degree": "Bachelor of Science in Computer Science",
+      "startDate": "2014-09",
+      "endDate": "2018-05",
+      "gpa": "3.8/4.0"
+    }
+  ],
+  "certifications": [
+    {
+      "name": "AWS Certified Solutions Architect",
+      "issuer": "Amazon Web Services",
+      "date": "2021-06"
+    }
+  ],
+  "languages": [
+    {
+      "language": "English",
+      "proficiency": "Native"
+    },
+    {
+      "language": "Spanish",
+      "proficiency": "Intermediate"
+    }
+  ]
+}
