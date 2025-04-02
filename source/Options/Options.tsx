@@ -5,6 +5,7 @@ import { UserProfile } from '@utils/aiWorkflow';
 import { profileToForm, formToProfile } from '@utils/profileConverters';
 import ManualProfileInput, { UserProfileForm } from './ManualProfileInput';
 import JsonProfileImport from './JsonProfileImport';
+import ResumeTemplateEditor from './ResumeTemplateEditor';
 import Logo from '@/components/Logo';
 
 // Debounce function to limit how often a function can be called
@@ -302,6 +303,12 @@ const Options: React.FC = () => {
             >
               JSON Import
             </Tabs.Trigger>
+            <Tabs.Trigger
+              value="template"
+              className="px-4 py-3 font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
+            >
+              Template
+            </Tabs.Trigger>
           </Tabs.List>
 
           <Tabs.Content value="manual" className="bg-white p-6">
@@ -326,6 +333,10 @@ const Options: React.FC = () => {
               onJsonInputChange={handleJsonInputChange}
               onImportProfile={importProfileFromJson}
             />
+          </Tabs.Content>
+
+          <Tabs.Content value="template" className="bg-white p-6">
+            <ResumeTemplateEditor onStatusChange={setStatus} />
           </Tabs.Content>
         </Tabs.Root>
       </div>

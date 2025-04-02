@@ -184,9 +184,32 @@ export async function analyzeJobDescription(
     const data = await response.json();
     const { content } = data.choices[0].message;
 
+    console.log('Raw API response content:', content);
+
+    // Preprocess the content to handle markdown formatting
+    let processedContent = content;
+
+    // Remove markdown code blocks if present (```json ... ```)
+    if (processedContent.includes('```')) {
+      processedContent = processedContent.replace(
+        /```(?:json)?\s*([\s\S]*?)\s*```/g,
+        '$1'
+      );
+      console.log(
+        'Processed content after removing markdown:',
+        processedContent
+      );
+    }
+
+    // Remove any leading/trailing whitespace
+    processedContent = processedContent.trim();
+
     // Parse the JSON response
     try {
-      const parsedContent = JSON.parse(content);
+      // Try to parse the processed content
+      const parsedContent = JSON.parse(processedContent);
+      console.log('Successfully parsed JSON:', parsedContent);
+
       return {
         keywords: parsedContent.keywords || [],
         requirements: parsedContent.requirements || [],
@@ -194,6 +217,26 @@ export async function analyzeJobDescription(
       };
     } catch (error) {
       console.error('Error parsing API response:', error);
+      console.error('Content that failed to parse:', processedContent);
+
+      // Attempt to extract JSON using regex as a fallback
+      try {
+        const jsonMatch = processedContent.match(/{[\s\S]*}/);
+        if (jsonMatch) {
+          const extractedJson = jsonMatch[0];
+          console.log('Extracted JSON using regex:', extractedJson);
+
+          const parsedContent = JSON.parse(extractedJson);
+          return {
+            keywords: parsedContent.keywords || [],
+            requirements: parsedContent.requirements || [],
+            responsibilities: parsedContent.responsibilities || [],
+          };
+        }
+      } catch (fallbackError) {
+        console.error('Fallback parsing also failed:', fallbackError);
+      }
+
       return null;
     }
   } catch (error) {
