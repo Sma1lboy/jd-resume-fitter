@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { browser, Tabs as BrowserTabs } from 'webextension-polyfill-ts';
-import * as Label from '@radix-ui/react-label';
 import * as Tabs from '@radix-ui/react-tabs';
 import { UserProfile } from '../utils/aiWorkflow';
-import { Input } from '../components/ui/Input';
+import { Input } from '../components/ui/input';
+import { InputField } from '@/components/ui/form-field';
 
 function openWebPage(url: string): Promise<BrowserTabs.Tab> {
   return browser.tabs.create({ url });
@@ -125,7 +125,7 @@ const Popup: React.FC = () => {
           <div className="bg-white">
             {/* Settings Tab */}
             <Tabs.Content value="settings" className="p-4">
-              <Input
+              <InputField
                 label="OpenAI Endpoint"
                 type="text"
                 id="endpoint"
@@ -136,7 +136,7 @@ const Popup: React.FC = () => {
                 className="mb-3"
               />
 
-              <Input
+              <InputField
                 label="API Key"
                 type="password"
                 id="apiKey"
@@ -147,7 +147,7 @@ const Popup: React.FC = () => {
                 className="mb-3"
               />
 
-              <Input
+              <InputField
                 label="Model"
                 type="text"
                 id="model"

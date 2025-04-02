@@ -1,7 +1,8 @@
 import * as React from 'react';
-import ReactDOM from 'react-dom';
-
+import { createRoot } from 'react-dom/client';
 import '../styles/tailwind.css';
 import Popup from './Popup';
 
-ReactDOM.render(<Popup />, document.getElementById('popup-root'));
+const container = document.getElementById('popup-root');
+const root = createRoot(container); // createRoot(container!) if you use TypeScript
+root.render(<Popup />);

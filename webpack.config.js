@@ -77,8 +77,12 @@ module.exports = {
         path.join(__dirname, 'node_modules', 'webextension-polyfill-ts')
       ),
       'react/jsx-runtime': require.resolve('react/jsx-runtime'),
-      '@': path.resolve(__dirname),
-      '@/source': path.resolve(__dirname, 'source'),
+      '@': path.resolve(__dirname, 'source'),
+      '@components': path.resolve(__dirname, 'source/components'),
+      '@styles': path.resolve(__dirname, 'source/styles'),
+      '@utils': path.resolve(__dirname, 'source/utils'),
+      '@hooks': path.resolve(__dirname, 'source/hooks'),
+      '@templates': path.resolve(__dirname, 'source/templates'),
       source: path.resolve(__dirname, 'source'),
     },
     fallback: {

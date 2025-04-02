@@ -2,9 +2,11 @@ import * as React from 'react';
 import { browser } from 'webextension-polyfill-ts';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Label from '@radix-ui/react-label';
-import { UserProfile } from '../utils/aiWorkflow';
-import { Input } from '../components/ui/Input';
-import { Textarea } from '../components/ui/textarea';
+import { UserProfile } from '@utils/aiWorkflow';
+import { Input } from '@components/ui/input';
+import { Textarea } from '@components/ui/textarea';
+import { InputField, TextareaField } from '@components/ui/form-field';
+import { X } from 'lucide-react';
 
 // Define the form profile type (strings for form fields)
 interface UserProfileForm {
@@ -324,7 +326,7 @@ const Options: React.FC = () => {
             >
               {/* Personal Information Section */}
               <div className="space-y-4">
-                <Input
+                <InputField
                   label="Full Name"
                   type="text"
                   id="name"
@@ -333,7 +335,7 @@ const Options: React.FC = () => {
                   onChange={handleProfileChange}
                 />
 
-                <Input
+                <InputField
                   label="Professional Title"
                   type="text"
                   id="title"
@@ -343,7 +345,7 @@ const Options: React.FC = () => {
                 />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
+                  <InputField
                     label="Email"
                     type="email"
                     id="email"
@@ -352,7 +354,7 @@ const Options: React.FC = () => {
                     onChange={handleProfileChange}
                   />
 
-                  <Input
+                  <InputField
                     label="Phone"
                     type="text"
                     id="phone"
@@ -362,7 +364,7 @@ const Options: React.FC = () => {
                   />
                 </div>
 
-                <Input
+                <InputField
                   label="Location"
                   type="text"
                   id="location"
@@ -372,7 +374,7 @@ const Options: React.FC = () => {
                 />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
+                  <InputField
                     label="LinkedIn"
                     type="text"
                     id="linkedin"
@@ -381,7 +383,7 @@ const Options: React.FC = () => {
                     onChange={handleProfileChange}
                   />
 
-                  <Input
+                  <InputField
                     label="GitHub"
                     type="text"
                     id="github"
@@ -391,7 +393,7 @@ const Options: React.FC = () => {
                   />
                 </div>
 
-                <Input
+                <InputField
                   label="Website"
                   type="text"
                   id="website"
@@ -400,7 +402,7 @@ const Options: React.FC = () => {
                   onChange={handleProfileChange}
                 />
 
-                <Textarea
+                <TextareaField
                   label="Professional Summary"
                   id="summary"
                   name="summary"
@@ -425,6 +427,7 @@ const Options: React.FC = () => {
                     .filter(s => s.trim())
                     .map((skill, index) => (
                       <div
+                        // eslint-disable-next-line react/no-array-index-key
                         key={index}
                         className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full flex items-center"
                       >
@@ -444,19 +447,7 @@ const Options: React.FC = () => {
                           className="text-blue-400 hover:text-red-500 transition-colors"
                           aria-label={`Remove ${skill.trim()} skill`}
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M18 6L6 18M6 6l12 12"></path>
-                          </svg>
+                          <X size={16} />
                         </button>
                       </div>
                     ))}
@@ -502,6 +493,7 @@ const Options: React.FC = () => {
                 {profile.experience &&
                   JSON.parse(profile.experience || '[]').map((exp, index) => (
                     <div
+                      // eslint-disable-next-line react/no-array-index-key
                       key={`exp-${index}`}
                       className="mb-4 p-4 border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-shadow"
                     >
@@ -530,25 +522,14 @@ const Options: React.FC = () => {
                           className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1 rounded-full"
                           aria-label="Remove experience"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M18 6L6 18M6 6l12 12"></path>
-                          </svg>
+                          <X size={20} />
                         </button>
                       </div>
                       <ul className="list-disc pl-5 space-y-1">
                         {exp.description &&
                           exp.description.map((desc, i) => (
                             <li
+                              // eslint-disable-next-line react/no-array-index-key
                               key={`desc-${index}-${i}`}
                               className="text-sm text-gray-600"
                             >
@@ -566,7 +547,7 @@ const Options: React.FC = () => {
                   </h4>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                    <Input
+                    <InputField
                       label="Company Name"
                       type="text"
                       value={newExperienceItem.company}
@@ -578,7 +559,7 @@ const Options: React.FC = () => {
                       }
                       placeholder="e.g., Acme Corporation"
                     />
-                    <Input
+                    <InputField
                       label="Job Title"
                       type="text"
                       value={newExperienceItem.title}
@@ -592,7 +573,7 @@ const Options: React.FC = () => {
                     />
                   </div>
 
-                  <Input
+                  <InputField
                     label="Duration"
                     type="text"
                     value={newExperienceItem.date}
@@ -613,7 +594,8 @@ const Options: React.FC = () => {
                     >
                       Responsibilities and Achievements
                     </Label.Root>
-                    <Textarea
+                    <TextareaField
+                      label="Responsibilities and Achievements"
                       id="description"
                       rows={4}
                       value={newExperienceItem.description}
@@ -687,6 +669,7 @@ const Options: React.FC = () => {
                 {profile.education &&
                   JSON.parse(profile.education || '[]').map((edu, index) => (
                     <div
+                      // eslint-disable-next-line react/no-array-index-key
                       key={`edu-${index}`}
                       className="mb-4 p-3 border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-shadow"
                     >
@@ -714,19 +697,7 @@ const Options: React.FC = () => {
                           className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1 rounded-full"
                           aria-label="Remove education"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M18 6L6 18M6 6l12 12"></path>
-                          </svg>
+                          <X size={20} />
                         </button>
                       </div>
                     </div>
@@ -736,7 +707,7 @@ const Options: React.FC = () => {
                   <h4 className="font-medium text-gray-700 mb-3">
                     Add Education
                   </h4>
-                  <Input
+                  <InputField
                     label="Institution"
                     type="text"
                     value={newEducationItem.institution}
@@ -749,7 +720,7 @@ const Options: React.FC = () => {
                     placeholder="e.g., University of Technology"
                     className="mb-3"
                   />
-                  <Input
+                  <InputField
                     label="Degree"
                     type="text"
                     value={newEducationItem.degree}
@@ -762,7 +733,7 @@ const Options: React.FC = () => {
                     placeholder="e.g., Bachelor of Science in Computer Science"
                     className="mb-3"
                   />
-                  <Input
+                  <InputField
                     label="Date Range"
                     type="text"
                     value={newEducationItem.date}
@@ -813,7 +784,7 @@ const Options: React.FC = () => {
               {/* Additional Sections */}
               <div className="pt-4 border-t border-gray-200 space-y-4">
                 <div>
-                  <Textarea
+                  <TextareaField
                     label="Certifications (JSON format)"
                     id="certifications"
                     name="certifications"
@@ -828,7 +799,7 @@ const Options: React.FC = () => {
                 </div>
 
                 <div>
-                  <Textarea
+                  <TextareaField
                     label="Languages (JSON format)"
                     id="languages"
                     name="languages"
@@ -864,7 +835,7 @@ const Options: React.FC = () => {
                 UserProfile interface or include personalInfo and workExperience
                 objects.
               </p>
-              <Textarea
+              <TextareaField
                 label="JSON Data"
                 id="jsonInput"
                 rows={15}
