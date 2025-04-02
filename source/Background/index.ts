@@ -1,14 +1,16 @@
-import { browser, Runtime } from 'webextension-polyfill-ts';
+import { browser, Notifications, Runtime } from 'webextension-polyfill-ts';
 import { runResumeWorkflow } from '../utils/aiWorkflow';
+import { debugLogger } from '../utils/debugLogger';
 
 const CONTEXT_MENU_ID = 'GENERATE_RESUME_SNIPPET';
+let isWorkflowRunning = false;
 
 // Function to create the context menu
 async function createContextMenu() {
   try {
     // First remove any existing context menus to avoid duplicates
     await browser.contextMenus.removeAll();
-    console.log('Removed existing context menus');
+    debugLogger.info('Removed existing context menus');
 
     // Create context menu item
     browser.contextMenus.create({
@@ -17,15 +19,15 @@ async function createContextMenu() {
       contexts: ['selection'], // Only show when text is selected
     });
 
-    console.log('Context menu created successfully.');
+    debugLogger.info('Context menu created successfully.');
   } catch (error) {
-    console.error('Error creating context menu:', error);
+    debugLogger.error('Error creating context menu: ' + String(error));
   }
 }
 
 // Create context menu when extension is installed
 browser.runtime.onInstalled.addListener((): void => {
-  console.log('🦊', 'extension installed');
+  debugLogger.info('🦊 Extension installed');
   createContextMenu();
 });
 
@@ -33,152 +35,226 @@ browser.runtime.onInstalled.addListener((): void => {
 // This ensures it's available even if the onInstalled event doesn't fire
 createContextMenu();
 
-// Listener for context menu clicks
-browser.contextMenus.onClicked.addListener(async (info, tab) => {
-  console.log('Context menu clicked with ID:', info.menuItemId);
-  console.log('Full info object:', info);
-  console.log('Tab:', tab);
-
-  // Added optional chaining for tab just in case
-  if (info.menuItemId === CONTEXT_MENU_ID && info.selectionText) {
-    console.log('Context menu matched our ID and has selected text.');
-    console.log('Selected Text (Job Description):', info.selectionText);
-
+// Helper function to send messages to content script with error handling
+async function sendTabMessage(tabId: number, message: any): Promise<any> {
+  try {
+    return await browser.tabs.sendMessage(tabId, message);
+  } catch (error) {
+    debugLogger.error('Error sending message to tab: ' + String(error));
+    // If the content script isn't loaded yet, we might need to inject it
     try {
-      console.log('Starting resume generation workflow...');
-      // Show loading notification
-      const loadingNotificationId = 'resume-generator-loading';
-      if (tab?.id) {
-        await browser.tabs.sendMessage(tab.id, {
-          action: 'showLoadingToast',
-          id: loadingNotificationId,
-          message: 'Generating resume snippet...',
+      await browser.tabs.executeScript(tabId, {
+        file: '../contentScript.js',
+      });
+      // Try sending the message again after injecting the script
+      return await browser.tabs.sendMessage(tabId, message);
+    } catch (injectError) {
+      debugLogger.error(
+        'Failed to inject content script: ' + String(injectError)
+      );
+      throw error;
+    }
+  }
+}
+
+// Function to create and show a notification with retry
+async function showNotification(
+  options: Notifications.CreateNotificationOptions,
+  maxRetries = 3
+): Promise<string> {
+  let retries = 0;
+
+  while (retries <= maxRetries) {
+    try {
+      return await browser.notifications.create(options);
+    } catch (error) {
+      debugLogger.error(
+        `Notification error (attempt ${retries + 1}/${maxRetries + 1}): ` +
+          String(error)
+      );
+      // eslint-disable-next-line no-plusplus
+      retries++;
+
+      if (retries <= maxRetries) {
+        await new Promise(resolve => {
+          setTimeout(resolve, 500);
         });
+      } else {
+        debugLogger.error('Maximum retry attempts reached for notification.');
+        throw error;
       }
+    }
+  }
 
-      // Send progress updates
-      const updateProgress = async (stage: string, progress: number) => {
-        if (tab?.id) {
-          await browser.tabs.sendMessage(tab.id, {
-            action: 'updateLoadingToast',
-            id: loadingNotificationId,
-            message: `${stage} (${progress}%)...`,
-          });
-        }
-      };
+  throw new Error('Failed to show notification after retries');
+}
 
-      // Run the resume workflow with progress updates
-      updateProgress('Analyzing job description', 10);
+// Listener for context menu clicks with debouncing
+browser.contextMenus.onClicked.addListener(async (info, tab) => {
+  debugLogger.info('Context menu clicked with ID: ' + info.menuItemId);
 
-      // Add a timeout to ensure we don't get stuck
-      const timeoutPromise = new Promise<null>(resolve => {
-        setTimeout(() => {
-          console.error('Resume workflow timed out after 2 minutes');
-          resolve(null);
-        }, 120000); // 2 minutes timeout
+  // Exit early if workflow is already running or if menu item doesn't match
+  if (
+    isWorkflowRunning ||
+    info.menuItemId !== CONTEXT_MENU_ID ||
+    !info.selectionText ||
+    !tab?.id
+  ) {
+    debugLogger.info(
+      isWorkflowRunning
+        ? 'Ignoring click - workflow already running'
+        : 'Ignoring click - conditions not met'
+    );
+    return;
+  }
+
+  // Set the flag to prevent multiple workflows
+  isWorkflowRunning = true;
+
+  debugLogger.info('Starting resume generation workflow...');
+  debugLogger.info(
+    'Selected Text (Job Description): ' +
+      (info.selectionText
+        ? info.selectionText.substring(0, 100) + '...'
+        : 'No text selected')
+  );
+
+  // Keep track of the loading notification ID
+  const loadingNotificationId = 'resume-generator-loading';
+
+  try {
+    // Show loading notification in the content script
+    await sendTabMessage(tab.id, {
+      action: 'showLoadingToast',
+      id: loadingNotificationId,
+      message: 'Generating resume snippet...',
+    });
+
+    // Create our progress reporting function
+    const updateProgress = async (phase: string, percentage: number) => {
+      debugLogger.info(`Progress update: ${phase} ${percentage}%`);
+      await sendTabMessage(tab.id, {
+        action: 'updateLoadingToast',
+        id: loadingNotificationId,
+        message: `${phase} (${percentage}%)...`,
+      });
+    };
+
+    // Run the resume workflow with comprehensive progress updates and error handling
+    const result = await runResumeWorkflow(info.selectionText, {
+      onAnalysisStart: async () => {
+        debugLogger.info('Analysis started callback triggered');
+        await updateProgress('Analyzing job description', 25);
+      },
+      onAnalysisComplete: async () => {
+        debugLogger.info('Analysis completed callback triggered');
+        await updateProgress('Analysis complete', 50);
+      },
+      onGenerationStart: async () => {
+        debugLogger.info('Generation started callback triggered');
+        await updateProgress('Generating resume', 60);
+      },
+      onGenerationComplete: async () => {
+        debugLogger.info('Generation completed callback triggered');
+        await updateProgress('Resume generated', 90);
+      },
+      onProgress: updateProgress,
+      onError: async error => {
+        debugLogger.error(
+          'Workflow error caught in callback: ' + String(error)
+        );
+        await sendTabMessage(tab.id, {
+          action: 'hideLoadingToast',
+          id: loadingNotificationId,
+        });
+
+        // Show error notification
+        await showNotification({
+          type: 'basic',
+          iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
+          title: 'Resume Generator - Error',
+          message: `Error: ${error.message || 'Unknown error'}`,
+        });
+      },
+    });
+
+    // Hide loading notification
+    await sendTabMessage(tab.id, {
+      action: 'hideLoadingToast',
+      id: loadingNotificationId,
+    });
+
+    if (result) {
+      // Copy the result to clipboard
+      await sendTabMessage(tab.id, {
+        action: 'copyToClipboard',
+        content: result,
       });
 
-      // Race between the workflow and the timeout
-      let result;
-      try {
-        console.log('Starting resume workflow with callbacks...');
-        result = await Promise.race([
-          runResumeWorkflow(info.selectionText, {
-            onAnalysisStart: () => {
-              console.log('Analysis started callback triggered');
-              return updateProgress('Analyzing job description', 25);
-            },
-            onAnalysisComplete: () => {
-              console.log('Analysis completed callback triggered');
-              return updateProgress('Generating resume', 50);
-            },
-            onGenerationStart: () => {
-              console.log('Generation started callback triggered');
-              return updateProgress('Generating resume', 75);
-            },
-            onGenerationComplete: () => {
-              console.log('Generation completed callback triggered');
-              return updateProgress('Finalizing resume', 90);
-            },
-          }),
-          timeoutPromise,
-        ]);
-        console.log(
-          'Resume workflow completed:',
-          result ? 'Result received' : 'No result'
-        );
-      } catch (workflowError) {
-        console.error('Error in resume workflow race:', workflowError);
-        // Show error notification
-        await browser.notifications.create({
-          type: 'basic',
-          iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
-          title: 'Resume Generator - Error',
-          message: `Error: ${workflowError instanceof Error ? workflowError.message : 'Unknown error'}`,
-        });
-        result = null;
-      }
+      // Show success notification
+      await showNotification({
+        type: 'basic',
+        iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
+        title: 'Resume Generator',
+        message: 'Resume snippet generated and copied to clipboard!',
+      });
 
-      // Hide loading notification
-      if (tab?.id) {
-        await browser.tabs.sendMessage(tab.id, {
-          action: 'hideLoadingToast',
-          id: loadingNotificationId,
-        });
-      }
-
-      // Copy the result to clipboard
-      // We need to send a message to the content script to do this
-      if (tab?.id && result) {
-        await browser.tabs.sendMessage(tab.id, {
-          action: 'copyToClipboard',
-          content: result,
-        });
-
-        // Notify the user
-        await browser.notifications.create({
-          type: 'basic',
-          iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
-          title: 'Resume Generator',
-          message: 'Resume snippet generated and copied to clipboard!',
-        });
-      } else if (tab?.id) {
-        // If we have a tab but no result, show an error
-        await browser.notifications.create({
-          type: 'basic',
-          iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
-          title: 'Resume Generator - Error',
-          message: 'Failed to generate resume snippet. Please try again.',
-        });
-      }
-    } catch (error) {
-      console.error('Error in resume workflow:', error);
-
-      // Hide loading notification if there was an error
-      if (tab?.id) {
-        await browser.tabs.sendMessage(tab.id, {
-          action: 'hideLoadingToast',
-          id: 'resume-generator-loading',
-        });
-      }
-
-      // Notify the user of the error
-      await browser.notifications.create({
+      debugLogger.info('Resume workflow completed successfully');
+    } else {
+      // Show error notification if no result but no exception
+      await showNotification({
         type: 'basic',
         iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
         title: 'Resume Generator - Error',
         message: 'Failed to generate resume snippet. Please try again.',
       });
+
+      debugLogger.info('Resume workflow completed with no result');
     }
+  } catch (error) {
+    debugLogger.error('Uncaught error in resume workflow: ' + String(error));
+
+    // Make sure to hide the loading toast if there's an uncaught error
+    try {
+      await sendTabMessage(tab.id, {
+        action: 'hideLoadingToast',
+        id: loadingNotificationId,
+      });
+    } catch (toastError) {
+      debugLogger.error(
+        'Error hiding loading toast after error: ' + String(toastError)
+      );
+    }
+
+    // Show error notification
+    try {
+      await showNotification({
+        type: 'basic',
+        iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
+        title: 'Resume Generator - Error',
+        message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
+    } catch (notificationError) {
+      debugLogger.error(
+        'Failed to show error notification: ' + String(notificationError)
+      );
+    }
+  } finally {
+    // Always reset the workflow flag when done
+    isWorkflowRunning = false;
+    debugLogger.info('Resume workflow complete, ready for next request');
   }
 });
 
-// Message listener
+// Message listener with improved error handling
 browser.runtime.onMessage.addListener(
   (message: unknown, sender: Runtime.MessageSender) => {
-    console.log('Message received in background:', message);
+    debugLogger.info(
+      'Message received in background: ' + JSON.stringify(message)
+    );
+    debugLogger.info('Message sender: ' + JSON.stringify(sender));
 
     // Handle messages if needed
-    // Example: sendResponse({ status: 'Received' });
+    return Promise.resolve({ status: 'Received' });
   }
 );
