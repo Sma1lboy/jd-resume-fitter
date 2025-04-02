@@ -5,6 +5,7 @@ import { UserProfile } from '@utils/aiWorkflow';
 import { profileToForm, formToProfile } from '@utils/profileConverters';
 import ManualProfileInput, { UserProfileForm } from './ManualProfileInput';
 import JsonProfileImport from './JsonProfileImport';
+import Logo from '@/components/Logo';
 
 // Debounce function to limit how often a function can be called
 const debounce = <F extends (...args: any[]) => any>(
@@ -265,8 +266,9 @@ const Options: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6 font-sans">
-      <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">
+      <h1 className="text-2xl font-bold mb-6 text-center text-gray-800 flex items-center justify-center">
         Resume Generator Settings
+        <Logo size="6" className="ml-2" />
       </h1>
 
       {status && (

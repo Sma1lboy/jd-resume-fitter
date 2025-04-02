@@ -166,7 +166,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
               <div
                 // eslint-disable-next-line react/no-array-index-key
                 key={index}
-                className="bg-secondary-200 text-gray-400 px-3 py-1 rounded-full flex items-center"
+                className="bg-amber-100 text-gray-800 px-3 py-1 rounded-full flex items-center"
               >
                 <span className="mr-2">{skill.trim()}</span>
                 <button
@@ -182,7 +182,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                     };
                     onProfileUpdate(updatedProfile);
                   }}
-                  className="text-primary-400 hover:text-red-500 transition-colors"
+                  className="text-red-400 hover:text-red-600 transition-colors"
                   aria-label={`Remove ${skill.trim()} skill`}
                 >
                   <X size={16} />

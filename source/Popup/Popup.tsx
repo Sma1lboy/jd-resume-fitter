@@ -2,6 +2,7 @@ import * as React from 'react';
 import { browser, Tabs as BrowserTabs } from 'webextension-polyfill-ts';
 import * as Tabs from '@radix-ui/react-tabs';
 import { UserProfile, OpenAISettings } from '../utils/aiWorkflow';
+import Logo from '../components/Logo';
 import {
   parseOpenAISettings,
   stringifyOpenAISettings,
@@ -140,8 +141,9 @@ const Popup: React.FC = () => {
 
   return (
     <div className="w-96 p-4 font-sans">
-      <h1 className="text-xl font-bold mb-4 text-center text-gray-800">
+      <h1 className="text-xl font-bold mb-4 text-center text-gray-800 flex items-center justify-center">
         Resume Generator
+        <Logo size="6" className="ml-2" />
       </h1>
 
       {saveStatus && (
@@ -289,7 +291,7 @@ const Popup: React.FC = () => {
         </Tabs.Root>
       </div>
 
-      <div className="text-center text-xs text-gray-500">
+      <div className="text-center text-xs text-gray-500 flex max-w-full justify-between align-middle items-center">
         <p>Resume Generator v1.0.0</p>
         <p className="mt-1">
           <a
