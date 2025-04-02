@@ -46,5 +46,14 @@
     "node": {
       "tryExtensions": [".tsx"] // append tsx to the list as well
     }
-  }
+  },
+  "overrides": [
+    {
+      "files": ["*.js"],
+      "excludedFiles": ["source/**/*.js"],
+      "parserOptions": {
+        "project": null
+      }
+    }
+  ]
 }

@@ -145,13 +145,13 @@ const Popup: React.FC = () => {
       </h1>
 
       {saveStatus && (
-        <div className="bg-green-500 text-white p-2 mb-4 rounded text-center text-sm">
+        <div className="bg-secondary-500 text-white p-2 mb-4 rounded text-center text-sm">
           {saveStatus}
         </div>
       )}
 
       {autoSaveStatus && (
-        <div className="bg-blue-500 text-white p-2 rounded text-center text-sm fixed bottom-4 right-4 z-50 shadow-md">
+        <div className="bg-secondary-500 text-white p-2 rounded text-center text-sm fixed bottom-4 right-4 z-50 shadow-md">
           {autoSaveStatus}
         </div>
       )}
@@ -161,13 +161,13 @@ const Popup: React.FC = () => {
           <Tabs.List className="flex bg-gray-100 border-b border-gray-200">
             <Tabs.Trigger
               value="settings"
-              className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
+              className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
             >
               Settings
             </Tabs.Trigger>
             <Tabs.Trigger
               value="profile"
-              className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
+              className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
             >
               Profile
             </Tabs.Trigger>
@@ -212,7 +212,7 @@ const Popup: React.FC = () => {
               <button
                 type="button"
                 onClick={saveSettings}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="w-full bg-primary-500 hover:bg-primary-600 text-primary-foreground font-medium py-2 px-4 rounded text-sm focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2"
               >
                 Save Settings
               </button>
@@ -230,7 +230,7 @@ const Popup: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => openWebPage('options.html')}
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    className="bg-primary-500 hover:bg-primary-600 text-primary-foreground font-medium py-2 px-4 rounded text-sm focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2"
                   >
                     Set Up Profile
                   </button>
@@ -298,7 +298,7 @@ const Popup: React.FC = () => {
               e.preventDefault();
               openWebPage('options.html');
             }}
-            className="text-blue-500 hover:text-blue-700"
+            className="text-primary-600 hover:text-primary-800"
           >
             Advanced Settings
           </a>

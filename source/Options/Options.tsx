@@ -276,7 +276,7 @@ const Options: React.FC = () => {
       )}
 
       {autoSaveStatus && (
-        <div className="bg-blue-500 text-white p-2 mb-4 rounded text-center text-sm fixed bottom-4 right-4 z-50 shadow-md">
+        <div className="bg-secondary-500 text-white p-2 mb-4 rounded text-center text-sm fixed bottom-4 right-4 z-50 shadow-md">
           {autoSaveStatus}
         </div>
       )}
@@ -290,13 +290,13 @@ const Options: React.FC = () => {
           <Tabs.List className="flex bg-gray-100 border-b border-gray-200">
             <Tabs.Trigger
               value="manual"
-              className="px-4 py-3 font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
+              className="px-4 py-3 font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
             >
               Manual Input
             </Tabs.Trigger>
             <Tabs.Trigger
               value="json"
-              className="px-4 py-3 font-medium data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
+              className="px-4 py-3 font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
             >
               JSON Import
             </Tabs.Trigger>

@@ -39,7 +39,7 @@ const JsonProfileImport: React.FC<JsonProfileImportProps> = ({
       <button
         type="button"
         onClick={onImportProfile}
-        className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        className="bg-primary-500 hover:bg-primary-600 text-primary-foreground font-medium py-2 px-4 rounded shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2"
       >
         Import Profile
       </button>

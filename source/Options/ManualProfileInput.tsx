@@ -166,7 +166,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
               <div
                 // eslint-disable-next-line react/no-array-index-key
                 key={index}
-                className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full flex items-center"
+                className="bg-secondary-200 text-gray-400 px-3 py-1 rounded-full flex items-center"
               >
                 <span className="mr-2">{skill.trim()}</span>
                 <button
@@ -182,7 +182,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                     };
                     onProfileUpdate(updatedProfile);
                   }}
-                  className="text-blue-400 hover:text-red-500 transition-colors"
+                  className="text-primary-400 hover:text-red-500 transition-colors"
                   aria-label={`Remove ${skill.trim()} skill`}
                 >
                   <X size={16} />
@@ -215,7 +215,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                 setNewSkill('');
               }
             }}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded shadow-sm transition-colors"
+            className="bg-primary-500 hover:bg-primary-600 text-primary-foreground px-4 py-2 rounded shadow-sm transition-colors"
           >
             Add
           </button>
@@ -238,7 +238,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
             >
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <h4 className="font-bold text-blue-600">{exp.title}</h4>
+                  <h4 className="font-bold text-primary">{exp.title}</h4>
                   <p className="text-sm text-gray-700">
                     <span className="font-medium">{exp.company}</span> •{' '}
                     {exp.date}
@@ -322,12 +322,6 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
           />
 
           <div className="mb-3">
-            <Label.Root
-              htmlFor="description"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Responsibilities and Achievements
-            </Label.Root>
             <TextareaField
               label="Responsibilities and Achievements"
               id="description"
@@ -384,7 +378,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                   });
                 }
               }}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="bg-primary-500 hover:bg-primary-600 text-primary-foreground px-4 py-2 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2"
             >
               Add to Resume
             </button>
@@ -405,7 +399,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
             >
               <div className="flex justify-between mb-2">
                 <div>
-                  <h4 className="font-bold text-blue-600">{edu.institution}</h4>
+                  <h4 className="font-bold text-primary">{edu.institution}</h4>
                   <p className="text-sm text-gray-700">
                     {edu.degree} • {edu.date}
                   </p>
@@ -496,7 +490,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                   });
                 }
               }}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="bg-primary-500 hover:bg-primary-600 text-primary-foreground px-4 py-2 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2"
             >
               Add Education
             </button>
@@ -540,7 +534,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
       <div className="pt-6">
         <button
           type="submit"
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          className="w-full bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
           Save Profile
         </button>

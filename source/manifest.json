@@ -3,21 +3,17 @@
   "name": "Resume Generator",
   "version": "1.0.0",
   "icons": {
-    "16": "assets/icons/favicon-16.png",
-    "32": "assets/icons/favicon-32.png",
-    "48": "assets/icons/favicon-48.png",
-    "128": "assets/icons/favicon-128.png"
+    "16": "assets/icons/favicon-16x16.png",
+    "32": "assets/icons/favicon-32x32.png"
   },
   "description": "Generate tailored resumes based on job descriptions",
-  "homepage_url": "https://github.com/abhijithvijayan/web-extension-starter",
+  "homepage_url": "https://github.com/Sma1lboy/jd-resume-fitter",
   "short_name": "ResumeGen",
   "permissions": [
     "activeTab",
     "storage",
     "contextMenus",
-    "notifications",
-    "http://*/*",
-    "https://*/*"
+    "notifications"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
@@ -36,10 +32,8 @@
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "assets/icons/favicon-16.png",
-      "32": "assets/icons/favicon-32.png",
-      "48": "assets/icons/favicon-48.png",
-      "128": "assets/icons/favicon-128.png"
+      "16": "assets/icons/favicon-16x16.png",
+      "32": "assets/icons/favicon-32x32.png"
     },
     "default_title": "Resume Generator"
   },
@@ -50,16 +44,5 @@
   },
   "background": {
     "service_worker": "js/background.bundle.js"
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "http://*/*",
-        "https://*/*"
-      ],
-      "js": [
-        "js/contentScript.bundle.js"
-      ]
-    }
-  ]
+  }
 }
