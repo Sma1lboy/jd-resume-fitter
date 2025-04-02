@@ -220,6 +220,18 @@ function showLoadingToast(id: string, message: string): void {
   }
 }
 
+// Function to update a loading toast with a new message
+function updateLoadingToast(id: string, message: string): void {
+  const toast = document.getElementById(id);
+  if (toast) {
+    // Find the message span (second child)
+    const messageSpan = toast.querySelector('span');
+    if (messageSpan) {
+      messageSpan.textContent = message;
+    }
+  }
+}
+
 // Function to hide a specific toast by ID
 function hideLoadingToast(id: string): void {
   const toast = document.getElementById(id);
@@ -283,6 +295,17 @@ browser.runtime.onMessage.addListener((message: any) => {
       console.log('Hiding loading toast:', message.id);
       hideLoadingToast(message.id);
       return Promise.resolve({ success: true, action: 'hideLoadingToast' });
+    }
+
+    // Handle updateLoadingToast action
+    if (
+      message.action === 'updateLoadingToast' &&
+      message.id &&
+      message.message
+    ) {
+      console.log('Updating loading toast:', message.id, message.message);
+      updateLoadingToast(message.id, message.message);
+      return Promise.resolve({ success: true, action: 'updateLoadingToast' });
     }
 
     console.warn('Unknown action received:', message.action);

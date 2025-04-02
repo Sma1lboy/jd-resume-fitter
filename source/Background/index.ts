@@ -56,8 +56,68 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         });
       }
 
-      // Run the resume workflow
-      const result = await runResumeWorkflow(info.selectionText);
+      // Send progress updates
+      const updateProgress = async (stage: string, progress: number) => {
+        if (tab?.id) {
+          await browser.tabs.sendMessage(tab.id, {
+            action: 'updateLoadingToast',
+            id: loadingNotificationId,
+            message: `${stage} (${progress}%)...`,
+          });
+        }
+      };
+
+      // Run the resume workflow with progress updates
+      updateProgress('Analyzing job description', 10);
+
+      // Add a timeout to ensure we don't get stuck
+      const timeoutPromise = new Promise<null>(resolve => {
+        setTimeout(() => {
+          console.error('Resume workflow timed out after 2 minutes');
+          resolve(null);
+        }, 120000); // 2 minutes timeout
+      });
+
+      // Race between the workflow and the timeout
+      let result;
+      try {
+        console.log('Starting resume workflow with callbacks...');
+        result = await Promise.race([
+          runResumeWorkflow(info.selectionText, {
+            onAnalysisStart: () => {
+              console.log('Analysis started callback triggered');
+              return updateProgress('Analyzing job description', 25);
+            },
+            onAnalysisComplete: () => {
+              console.log('Analysis completed callback triggered');
+              return updateProgress('Generating resume', 50);
+            },
+            onGenerationStart: () => {
+              console.log('Generation started callback triggered');
+              return updateProgress('Generating resume', 75);
+            },
+            onGenerationComplete: () => {
+              console.log('Generation completed callback triggered');
+              return updateProgress('Finalizing resume', 90);
+            },
+          }),
+          timeoutPromise,
+        ]);
+        console.log(
+          'Resume workflow completed:',
+          result ? 'Result received' : 'No result'
+        );
+      } catch (workflowError) {
+        console.error('Error in resume workflow race:', workflowError);
+        // Show error notification
+        await browser.notifications.create({
+          type: 'basic',
+          iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
+          title: 'Resume Generator - Error',
+          message: `Error: ${workflowError instanceof Error ? workflowError.message : 'Unknown error'}`,
+        });
+        result = null;
+      }
 
       // Hide loading notification
       if (tab?.id) {
@@ -81,6 +141,14 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
           iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
           title: 'Resume Generator',
           message: 'Resume snippet generated and copied to clipboard!',
+        });
+      } else if (tab?.id) {
+        // If we have a tab but no result, show an error
+        await browser.notifications.create({
+          type: 'basic',
+          iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
+          title: 'Resume Generator - Error',
+          message: 'Failed to generate resume snippet. Please try again.',
         });
       }
     } catch (error) {
