@@ -4,7 +4,7 @@ import { runResumeWorkflow } from '../utils/aiWorkflow';
 const CONTEXT_MENU_ID = 'GENERATE_RESUME_SNIPPET';
 
 browser.runtime.onInstalled.addListener((): void => {
-  console.log('🦄', 'extension installed');
+  console.log('🦊', 'extension installed');
 
   // Create context menu item
   browser.contextMenus.create({

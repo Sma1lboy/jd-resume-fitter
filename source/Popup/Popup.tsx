@@ -1,7 +1,11 @@
 import * as React from 'react';
 import { browser, Tabs as BrowserTabs } from 'webextension-polyfill-ts';
 import * as Tabs from '@radix-ui/react-tabs';
-import { UserProfile } from '../utils/aiWorkflow';
+import { UserProfile, OpenAISettings } from '../utils/aiWorkflow';
+import {
+  parseOpenAISettings,
+  stringifyOpenAISettings,
+} from '../utils/settingsConverters';
 import { Input } from '../components/ui/input';
 import { InputField } from '@/components/ui/form-field';
 
@@ -9,51 +13,59 @@ function openWebPage(url: string): Promise<BrowserTabs.Tab> {
   return browser.tabs.create({ url });
 }
 
-interface OpenAISettings {
-  endpoint: string;
-  apiKey: string;
-  model: string;
-}
-
-const defaultOpenAISettings: OpenAISettings = {
-  endpoint: 'https://api.openai.com/v1',
-  apiKey: '',
-  model: 'gpt-4o-mini',
-};
-
 // Removed predefined model options to allow user input
 
+// Debounce function to limit how often a function can be called
+const debounce = <F extends (...args: any[]) => any>(
+  func: F,
+  waitFor: number
+): ((...args: Parameters<F>) => void) => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+
+  return (...args: Parameters<F>): void => {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(() => func(...args), waitFor);
+  };
+};
+
 const Popup: React.FC = () => {
-  const [settings, setSettings] = React.useState<OpenAISettings>(
-    defaultOpenAISettings
-  );
+  const [settings, setSettings] = React.useState<OpenAISettings>({
+    endpoint: 'https://api.openai.com/v1',
+    apiKey: '',
+    model: 'gpt-4o-mini',
+  });
   // Removed customModel state since we're using direct input
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [saveStatus, setSaveStatus] = React.useState<string>('');
+  const [autoSaveStatus, setAutoSaveStatus] = React.useState<string>('');
 
   // Load settings and profile on component mount
   React.useEffect(() => {
+    // Load OpenAI settings from storage
+    const loadSettings = async () => {
+      try {
+        const data = await browser.storage.local.get('openAISettings');
+        // Use utility function to parse settings
+        const loadedSettings = parseOpenAISettings(
+          data.openAISettings,
+          settings
+        );
+        setSettings(loadedSettings);
+      } catch (error) {
+        console.error('Error loading OpenAI settings:', error);
+      }
+    };
+
     const loadData = async () => {
       await loadSettings();
       await loadProfile();
       setLoading(false);
     };
     loadData();
-  }, []);
-
-  // Load OpenAI settings from storage
-  const loadSettings = async () => {
-    try {
-      const data = await browser.storage.local.get('openAISettings');
-      if (data.openAISettings) {
-        const loadedSettings = JSON.parse(data.openAISettings);
-        setSettings(loadedSettings);
-      }
-    } catch (error) {
-      console.error('Error loading OpenAI settings:', error);
-    }
-  };
+  }, [settings]); // Add settings as a dependency
 
   // Load user profile from storage
   const loadProfile = async () => {
@@ -70,8 +82,10 @@ const Popup: React.FC = () => {
   // Save OpenAI settings to storage
   const saveSettings = async () => {
     try {
+      // Use utility function to stringify settings
+      const settingsJson = stringifyOpenAISettings(settings);
       await browser.storage.local.set({
-        openAISettings: JSON.stringify(settings),
+        openAISettings: settingsJson,
       });
       setSaveStatus('Settings saved successfully!');
       setTimeout(() => setSaveStatus(''), 3000);
@@ -81,16 +95,47 @@ const Popup: React.FC = () => {
     }
   };
 
+  // Auto-save settings with debounce
+  const debouncedSaveSettings = React.useCallback(
+    (updatedSettings: OpenAISettings) => {
+      const saveWithDebounce = debounce(
+        async (settingsToSave: OpenAISettings) => {
+          try {
+            // Use utility function to stringify settings
+            const settingsJson = stringifyOpenAISettings(settingsToSave);
+            await browser.storage.local.set({
+              openAISettings: settingsJson,
+            });
+            setAutoSaveStatus('Auto-saved');
+            setTimeout(() => setAutoSaveStatus(''), 2000);
+          } catch (error) {
+            console.error('Error auto-saving settings:', error);
+            setAutoSaveStatus('Auto-save failed');
+            setTimeout(() => setAutoSaveStatus(''), 3000);
+          }
+        },
+        1000
+      );
+
+      saveWithDebounce(updatedSettings);
+    },
+    []
+  );
+
   // Handle settings field changes
   const handleSettingChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     // Update settings directly
-    setSettings(prev => ({
-      ...prev,
+    const updatedSettings = {
+      ...settings,
       [name]: value,
-    }));
+    };
+    setSettings(updatedSettings);
+
+    // Trigger auto-save
+    debouncedSaveSettings(updatedSettings);
   };
 
   return (
@@ -102,6 +147,12 @@ const Popup: React.FC = () => {
       {saveStatus && (
         <div className="bg-green-500 text-white p-2 mb-4 rounded text-center text-sm">
           {saveStatus}
+        </div>
+      )}
+
+      {autoSaveStatus && (
+        <div className="bg-blue-500 text-white p-2 rounded text-center text-sm fixed bottom-4 right-4 z-50 shadow-md">
+          {autoSaveStatus}
         </div>
       )}
 
