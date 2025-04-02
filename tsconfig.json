@@ -18,7 +18,16 @@
     "noImplicitThis": false,
     "alwaysStrict": false,
     "noUnusedLocals": false,
-    "noUnusedParameters": false
+    "noUnusedParameters": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["source/*"],
+      "@components/*": ["source/components/*"],
+      "@styles/*": ["source/styles/*"],
+      "@utils/*": ["source/utils/*"],
+      "@hooks/*": ["source/hooks/*"],
+      "@templates/*": ["source/templates/*"]
+    }
   },
-  "include": ["source", "webpack.config.js"]
+  "include": ["source", "webpack.config.mjs"]
 }

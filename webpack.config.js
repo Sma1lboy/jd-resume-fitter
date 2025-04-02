@@ -4,7 +4,7 @@ const FilemanagerPlugin = require('filemanager-webpack-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const {CleanWebpackPlugin} = require('clean-webpack-plugin');
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const ExtensionReloader = require('webpack-ext-reloader');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const WextManifestWebpackPlugin = require('wext-manifest-webpack-plugin');
@@ -33,7 +33,7 @@ const extensionReloaderPlugin =
         this.apply = () => {};
       };
 
-const getExtensionFileType = (browser) => {
+const getExtensionFileType = browser => {
   if (browser === 'opera') {
     return 'crx';
   }
@@ -71,11 +71,18 @@ module.exports = {
   },
 
   resolve: {
-    extensions: ['.ts', '.tsx', '.js', '.json'],
+    extensions: ['.ts', '.tsx', '.js', '.json', '.mjs'],
     alias: {
       'webextension-polyfill-ts': path.resolve(
         path.join(__dirname, 'node_modules', 'webextension-polyfill-ts')
       ),
+      'react/jsx-runtime': require.resolve('react/jsx-runtime'),
+      '@': path.resolve(__dirname),
+      '@/source': path.resolve(__dirname, 'source'),
+      source: path.resolve(__dirname, 'source'),
+    },
+    fallback: {
+      path: false,
     },
   },
 
@@ -95,7 +102,7 @@ module.exports = {
       {
         test: /\.(js|ts)x?$/,
         loader: 'babel-loader',
-        exclude: /node_modules/,
+        exclude: /node_modules\/(?!(@radix-ui|tailwind-merge|clsx))/,
       },
       {
         test: /\.(sa|sc|c)ss$/,
@@ -113,14 +120,7 @@ module.exports = {
             loader: 'postcss-loader',
             options: {
               postcssOptions: {
-                plugins: [
-                  [
-                    'autoprefixer',
-                    {
-                      // Options
-                    },
-                  ],
-                ],
+                plugins: ['tailwindcss', 'autoprefixer'],
               },
             },
           },
@@ -135,7 +135,7 @@ module.exports = {
     // Plugin to not generate js bundle for manifest entry
     new WextManifestWebpackPlugin(),
     // Generate sourcemaps
-    new webpack.SourceMapDevToolPlugin({filename: false}),
+    new webpack.SourceMapDevToolPlugin({ filename: false }),
     new ForkTsCheckerWebpackPlugin(),
     // environmental variables
     new webpack.EnvironmentPlugin(['NODE_ENV', 'TARGET_BROWSER']),
@@ -166,10 +166,10 @@ module.exports = {
       filename: 'options.html',
     }),
     // write css file(s) to build folder
-    new MiniCssExtractPlugin({filename: 'css/[name].css'}),
+    new MiniCssExtractPlugin({ filename: 'css/[name].css' }),
     // copy static assets
     new CopyWebpackPlugin({
-      patterns: [{from: 'source/assets', to: 'assets'}],
+      patterns: [{ from: 'source/assets', to: 'assets' }],
     }),
     // plugin to enable browser reloading in development mode
     extensionReloaderPlugin,
@@ -189,7 +189,7 @@ module.exports = {
       }),
       new OptimizeCSSAssetsPlugin({
         cssProcessorPluginOptions: {
-          preset: ['default', {discardComments: {removeAll: true}}],
+          preset: ['default', { discardComments: { removeAll: true } }],
         },
       }),
       new FilemanagerPlugin({
@@ -200,7 +200,7 @@ module.exports = {
                 format: 'zip',
                 source: path.join(destPath, targetBrowser),
                 destination: `${path.join(destPath, targetBrowser)}.${getExtensionFileType(targetBrowser)}`,
-                options: {zlib: {level: 6}},
+                options: { zlib: { level: 6 } },
               },
             ],
           },

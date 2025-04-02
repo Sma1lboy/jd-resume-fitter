@@ -29,10 +29,10 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 
       // Copy the result to clipboard
       // We need to send a message to the content script to do this
-      if (tab?.id) {
+      if (tab?.id && result) {
         await browser.tabs.sendMessage(tab.id, {
           action: 'copyToClipboard',
-          content: result.resumeContent,
+          content: result,
         });
 
         // Notify the user

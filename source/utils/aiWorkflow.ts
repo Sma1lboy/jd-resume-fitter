@@ -1,270 +1,315 @@
 import { browser } from 'webextension-polyfill-ts';
 
-// Define types for our workflow
+// Define the user profile interface
 export interface UserProfile {
   name: string;
   title: string;
   email: string;
   phone: string;
   location: string;
-  linkedin: string;
-  github: string;
-  website: string;
+  linkedin?: string;
+  github?: string;
+  website?: string;
   summary: string;
   skills: string[];
   experience: {
     company: string;
     title: string;
-    location: string;
-    startDate: string;
-    endDate: string;
-    highlights: string[];
+    date: string;
+    description: string[];
   }[];
   education: {
     institution: string;
     degree: string;
-    startDate: string;
-    endDate: string;
-    gpa: string;
+    date: string;
   }[];
-  certifications: {
+  certifications?: {
     name: string;
     issuer: string;
     date: string;
   }[];
-  languages: {
+  languages?: {
     language: string;
     proficiency: string;
   }[];
 }
 
-export interface ResumeTemplate {
-  content: string;
+// Define the OpenAI settings interface
+export interface OpenAISettings {
+  endpoint: string;
+  apiKey: string;
+  model: string;
 }
 
-// interface WorkflowInput {
-//   jobDescription: string;
-//   userProfile: UserProfile;
-//   resumeTemplate: ResumeTemplate;
-// }
-
-interface WorkflowOutput {
-  resumeContent: string;
-}
+// Default OpenAI settings
+export const defaultOpenAISettings: OpenAISettings = {
+  endpoint: 'https://api.openai.com/v1',
+  apiKey: '',
+  model: 'gpt-3.5-turbo',
+};
 
 // Load user profile from storage
-export async function loadUserProfile(): Promise<UserProfile> {
+export async function loadUserProfile(): Promise<UserProfile | null> {
   try {
     const data = await browser.storage.local.get('userProfile');
     if (data.userProfile) {
       return JSON.parse(data.userProfile);
     }
-
-    // If no profile exists, load the default one from templates
-    const response = await fetch(
-      browser.runtime.getURL('templates/user_profile.json')
-    );
-    const defaultProfile = await response.json();
-
-    // Save the default profile to storage
-    await browser.storage.local.set({
-      userProfile: JSON.stringify(defaultProfile),
-    });
-
-    return defaultProfile;
+    return null;
   } catch (error) {
     console.error('Error loading user profile:', error);
-    throw error;
+    return null;
+  }
+}
+
+// Save user profile to storage
+export async function saveUserProfile(profile: UserProfile): Promise<boolean> {
+  try {
+    await browser.storage.local.set({
+      userProfile: JSON.stringify(profile),
+    });
+    return true;
+  } catch (error) {
+    console.error('Error saving user profile:', error);
+    return false;
   }
 }
 
 // Load resume template from storage
-export async function loadResumeTemplate(): Promise<ResumeTemplate> {
+export async function loadResumeTemplate(): Promise<string | null> {
   try {
     const data = await browser.storage.local.get('resumeTemplate');
     if (data.resumeTemplate) {
-      return { content: data.resumeTemplate };
+      return data.resumeTemplate;
     }
-
-    // If no template exists, load the default one from templates
-    const response = await fetch(
-      browser.runtime.getURL('templates/resume_template.tex')
-    );
-    const defaultTemplate = await response.text();
-
-    // Save the default template to storage
-    await browser.storage.local.set({ resumeTemplate: defaultTemplate });
-
-    return { content: defaultTemplate };
+    return null;
   } catch (error) {
     console.error('Error loading resume template:', error);
-    throw error;
+    return null;
   }
 }
 
-// Job Analysis: Analyze the job description to extract key requirements and skills
-async function analyzeJobDescription(jobDescription: string): Promise<string> {
+// Save resume template to storage
+export async function saveResumeTemplate(template: string): Promise<boolean> {
   try {
-    // In a real implementation, you would use an AI API
-    // For now, we'll simulate the response with a simple keyword extraction
-    const keywords = [
-      'javascript',
-      'typescript',
-      'react',
-      'node',
-      'web',
-      'frontend',
-      'backend',
-      'fullstack',
-      'developer',
-      'engineer',
-      'software',
-      'programming',
-      'coding',
-      'api',
-      'database',
-      'sql',
-      'nosql',
-      'cloud',
-      'aws',
-      'azure',
-      'gcp',
-      'devops',
-      'ci/cd',
-      'testing',
-      'agile',
-      'scrum',
-      'git',
-      'github',
-    ];
+    await browser.storage.local.set({
+      resumeTemplate: template,
+    });
+    return true;
+  } catch (error) {
+    console.error('Error saving resume template:', error);
+    return false;
+  }
+}
 
-    // Extract keywords from job description
-    const foundKeywords = keywords.filter(keyword =>
-      jobDescription.toLowerCase().includes(keyword.toLowerCase())
-    );
+// Load OpenAI settings from storage
+export async function loadOpenAISettings(): Promise<OpenAISettings> {
+  try {
+    const data = await browser.storage.local.get('openAISettings');
+    if (data.openAISettings) {
+      return JSON.parse(data.openAISettings);
+    }
+    return defaultOpenAISettings;
+  } catch (error) {
+    console.error('Error loading OpenAI settings:', error);
+    return defaultOpenAISettings;
+  }
+}
 
-    // Create a simple analysis
-    const analysis = `
-    Job Analysis:
-    - Required Skills: ${foundKeywords.join(', ')}
-    - Experience: ${jobDescription.includes('years') ? '3+ years in development' : 'Not specified'}
-    - Education: ${jobDescription.includes('degree') ? "Bachelor's degree preferred" : 'Not specified'}
-    - Soft Skills: Communication, teamwork, problem-solving
-    - Additional Requirements: ${jobDescription.includes('cloud') ? 'Experience with cloud platforms' : 'None specified'}
-    `;
+// Save OpenAI settings to storage
+export async function saveOpenAISettings(
+  settings: OpenAISettings
+): Promise<boolean> {
+  try {
+    await browser.storage.local.set({
+      openAISettings: JSON.stringify(settings),
+    });
+    return true;
+  } catch (error) {
+    console.error('Error saving OpenAI settings:', error);
+    return false;
+  }
+}
 
-    return analysis;
+// Analyze job description using OpenAI
+export async function analyzeJobDescription(
+  jobDescription: string,
+  settings: OpenAISettings
+): Promise<{
+  keywords: string[];
+  requirements: string[];
+  responsibilities: string[];
+} | null> {
+  try {
+    const response = await fetch(`${settings.endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${settings.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: settings.model,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a helpful assistant that analyzes job descriptions and extracts key information.',
+          },
+          {
+            role: 'user',
+            content: `Analyze the following job description and extract: 
+            1. Keywords (skills, technologies, tools)
+            2. Requirements (qualifications, experience, education)
+            3. Responsibilities (tasks, duties)
+            
+            Format your response as JSON with the following structure:
+            {
+              "keywords": ["keyword1", "keyword2", ...],
+              "requirements": ["requirement1", "requirement2", ...],
+              "responsibilities": ["responsibility1", "responsibility2", ...]
+            }
+            
+            Job Description:
+            ${jobDescription}`,
+          },
+        ],
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const { content } = data.choices[0].message;
+
+    // Parse the JSON response
+    try {
+      const parsedContent = JSON.parse(content);
+      return {
+        keywords: parsedContent.keywords || [],
+        requirements: parsedContent.requirements || [],
+        responsibilities: parsedContent.responsibilities || [],
+      };
+    } catch (error) {
+      console.error('Error parsing API response:', error);
+      return null;
+    }
   } catch (error) {
     console.error('Error analyzing job description:', error);
-    throw error;
+    return null;
   }
 }
 
-// Generate LaTeX Resume: Create a tailored resume based on the job analysis and user profile
-async function generateLatexResume(
-  jobAnalysis: string,
-  userProfile: UserProfile,
-  resumeTemplate: ResumeTemplate
-): Promise<string> {
+// Generate tailored resume using OpenAI
+export async function generateTailoredResume(
+  jobDescription: string,
+  profile: UserProfile,
+  template: string,
+  settings: OpenAISettings
+): Promise<string | null> {
   try {
-    // Extract skills from job analysis
-    const requiredSkillsMatch = jobAnalysis.match(/Required Skills: (.*)/);
-    const requiredSkills = requiredSkillsMatch
-      ? requiredSkillsMatch[1].split(', ')
-      : [];
+    // First analyze the job description
+    const analysis = await analyzeJobDescription(jobDescription, settings);
 
-    // Filter user skills to highlight matching ones
-    const highlightedSkills = userProfile.skills.filter(skill =>
-      requiredSkills.some(req =>
-        skill.toLowerCase().includes(req.toLowerCase())
-      )
-    );
+    if (!analysis) {
+      throw new Error('Failed to analyze job description');
+    }
 
-    // If no skills match, use all skills
-    const skillsToUse =
-      highlightedSkills.length > 0 ? highlightedSkills : userProfile.skills;
+    // Generate the resume
+    const response = await fetch(`${settings.endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${settings.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: settings.model,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a professional resume writer that creates tailored resumes based on job descriptions and user profiles.',
+          },
+          {
+            role: 'user',
+            content: `Create a tailored resume for the following job description using the provided user profile and template.
+            
+            Job Description:
+            ${jobDescription}
+            
+            Job Analysis:
+            Keywords: ${analysis.keywords.join(', ')}
+            Requirements: ${analysis.requirements.join(', ')}
+            Responsibilities: ${analysis.responsibilities.join(', ')}
+            
+            User Profile:
+            ${JSON.stringify(profile, null, 2)}
+            
+            Resume Template:
+            ${template}
+            
+            Generate a complete resume that matches the template format and highlights the most relevant skills and experiences for this job.`,
+          },
+        ],
+        temperature: 0.5,
+      }),
+    });
 
-    // Create skills section
-    const skillsSection = skillsToUse.join(', ');
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`);
+    }
 
-    // Create experience section
-    const experienceSection = userProfile.experience
-      .map(
-        exp =>
-          `\\cventry{${exp.startDate} -- ${exp.endDate}}{${exp.title}}{${exp.company}}{${exp.location}}{}{${exp.highlights.join('. ')}}`
-      )
-      .join('\n');
-
-    // Create education section
-    const educationSection = userProfile.education
-      .map(
-        edu =>
-          `\\cventry{${edu.startDate} -- ${edu.endDate}}{${edu.degree}}{${edu.institution}}{}{}{GPA: ${edu.gpa}}`
-      )
-      .join('\n');
-
-    // Create certifications section
-    const certificationsSection = userProfile.certifications
-      .map(cert => `\\cvitem{${cert.date}}{${cert.name} (${cert.issuer})}`)
-      .join('\n');
-
-    // Create languages section
-    const languagesSection = userProfile.languages
-      .map(
-        lang => `\\cvitemwithcomment{${lang.language}}{${lang.proficiency}}{}`
-      )
-      .join('\n');
-
-    // Replace placeholders in template
-    const resume = resumeTemplate.content
-      .replace(/{{name}}/g, userProfile.name)
-      .replace(/{{title}}/g, userProfile.title)
-      .replace(/{{location}}/g, userProfile.location)
-      .replace(/{{phone}}/g, userProfile.phone)
-      .replace(/{{email}}/g, userProfile.email)
-      .replace(/{{linkedin}}/g, userProfile.linkedin)
-      .replace(/{{github}}/g, userProfile.github)
-      .replace(/{{website}}/g, userProfile.website)
-      .replace(/{{summary}}/g, userProfile.summary)
-      .replace(/{{skills}}/g, skillsSection)
-      .replace(/{{experience}}/g, experienceSection)
-      .replace(/{{education}}/g, educationSection)
-      .replace(/{{certifications}}/g, certificationsSection)
-      .replace(/{{languages}}/g, languagesSection);
-
-    return resume;
+    const data = await response.json();
+    const { content } = data.choices[0].message;
+    return content;
   } catch (error) {
-    console.error('Error generating LaTeX resume:', error);
-    throw error;
+    console.error('Error generating tailored resume:', error);
+    return null;
   }
 }
 
 // Main workflow function
 export async function runResumeWorkflow(
   jobDescription: string
-): Promise<WorkflowOutput> {
+): Promise<string | null> {
   try {
-    // Step 1: Load user profile and resume template
-    const userProfile = await loadUserProfile();
-    const resumeTemplate = await loadResumeTemplate();
+    // Load all necessary data
+    const [profile, template, settings] = await Promise.all([
+      loadUserProfile(),
+      loadResumeTemplate(),
+      loadOpenAISettings(),
+    ]);
 
-    // Step 2: Analyze job description
-    console.log('Analyzing job description...');
-    const jobAnalysis = await analyzeJobDescription(jobDescription);
-    console.log('Job analysis complete.');
+    // Check if all required data is available
+    if (!profile) {
+      throw new Error(
+        'User profile not found. Please set up your profile first.'
+      );
+    }
 
-    // Step 3: Generate LaTeX resume
-    console.log('Generating tailored resume...');
-    const latexResponse = await generateLatexResume(
-      jobAnalysis,
-      userProfile,
-      resumeTemplate
+    if (!template) {
+      throw new Error(
+        'Resume template not found. Please set up a template first.'
+      );
+    }
+
+    if (!settings.apiKey) {
+      throw new Error(
+        'OpenAI API key not found. Please set up your API key first.'
+      );
+    }
+
+    // Generate the tailored resume
+    return await generateTailoredResume(
+      jobDescription,
+      profile,
+      template,
+      settings
     );
-    console.log('Resume generation complete.');
-
-    return { resumeContent: latexResponse };
   } catch (error) {
-    console.error('Error in resume workflow:', error);
-    throw error;
+    console.error('Error running resume workflow:', error);
+    return null;
   }
 }
