@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "icons": {
     "16": "assets/icons/favicon-16x16.png",
-    "32": "assets/icons/favicon-32x32.png"
+    "32": "assets/icons/favicon-32x32.png",
+    "48": "assets/icons/android-chrome-192x192.png",
+    "128": "assets/icons/android-chrome-512x512.png"
   },
   "description": "Generate tailored resumes based on job descriptions",
   "homepage_url": "https://github.com/Sma1lboy/jd-resume-fitter",
@@ -40,7 +42,9 @@
     "default_popup": "popup.html",
     "default_icon": {
       "16": "assets/icons/favicon-16x16.png",
-      "32": "assets/icons/favicon-32x32.png"
+      "32": "assets/icons/favicon-32x32.png",
+      "48": "assets/icons/android-chrome-192x192.png",
+      "128": "assets/icons/android-chrome-512x512.png"
     },
     "default_title": "Resume Generator"
   },

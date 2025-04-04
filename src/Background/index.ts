@@ -157,7 +157,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
       // Show success notification
       await showNotification({
         type: 'basic',
-        iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
+        iconUrl: browser.runtime.getURL('assets/icons/android-chrome-192x192.png'),
         title: 'Resume Generator',
         message: 'Resume snippet generated and copied to clipboard!',
       });
@@ -165,7 +165,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
       // Show error notification if no result but no exception
       await showNotification({
         type: 'basic',
-        iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
+        iconUrl: browser.runtime.getURL('assets/icons/android-chrome-192x192.png'),
         title: 'Resume Generator - Error',
         message: 'Failed to generate resume snippet. Please try again.',
       });
@@ -185,7 +185,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     try {
       await showNotification({
         type: 'basic',
-        iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
+        iconUrl: browser.runtime.getURL('assets/icons/android-chrome-192x192.png'),
         title: 'Resume Generator - Error',
         message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
