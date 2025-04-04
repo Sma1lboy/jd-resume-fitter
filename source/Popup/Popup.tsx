@@ -1,60 +1,52 @@
 import * as React from 'react';
 import { browser, Tabs as BrowserTabs } from 'webextension-polyfill-ts';
 import * as Tabs from '@radix-ui/react-tabs';
-import { UserProfile, OpenAISettings } from '../utils/aiWorkflow';
 import Logo from '../components/Logo';
 import {
   parseOpenAISettings,
   stringifyOpenAISettings,
+  defaultOpenAISettings,
 } from '../utils/settingsConverters';
 import { Input } from '../components/ui/input';
 import { InputField } from '@/components/ui/form-field';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { OpenAISettings, UserProfile } from '@/types';
 
 function openWebPage(url: string): Promise<BrowserTabs.Tab> {
   return browser.tabs.create({ url });
 }
 
 // Removed predefined model options to allow user input
-
-// Debounce function to limit how often a function can be called
-const debounce = <F extends (...args: any[]) => any>(
-  func: F,
-  waitFor: number
-): ((...args: Parameters<F>) => void) => {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
-
-  return (...args: Parameters<F>): void => {
-    if (timeout !== null) {
-      clearTimeout(timeout);
-    }
-    timeout = setTimeout(() => func(...args), waitFor);
-  };
-};
+interface ResumeItem {
+  id: string;
+  date: string;
+  content: string;
+  preview: string;
+  jobDescription: string;
+}
 
 const Popup: React.FC = () => {
-  const [settings, setSettings] = React.useState<OpenAISettings>({
-    endpoint: 'https://api.openai.com/v1',
-    apiKey: '',
-    model: 'gpt-4o-mini',
-  });
-  // Removed customModel state since we're using direct input
+  const [settings, setSettings] = React.useState<OpenAISettings>(
+    defaultOpenAISettings
+  );
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [saveStatus, setSaveStatus] = React.useState<string>('');
   const [autoSaveStatus, setAutoSaveStatus] = React.useState<string>('');
+  const [recentResumes, setRecentResumes] = React.useState<ResumeItem[]>([]);
+  const [copyStatus, setCopyStatus] = React.useState<{ [key: string]: string }>(
+    {}
+  );
 
-  // Load settings and profile on component mount
   React.useEffect(() => {
-    // Load OpenAI settings from storage
     const loadSettings = async () => {
       try {
         const data = await browser.storage.local.get('openAISettings');
-        // Use utility function to parse settings
-        const loadedSettings = parseOpenAISettings(
-          data.openAISettings,
-          settings
-        );
-        setSettings(loadedSettings);
+        const loadedSettings = parseOpenAISettings(data.openAISettings);
+        if (loadedSettings) {
+          setSettings(loadedSettings);
+        }
       } catch (error) {
         console.error('Error loading OpenAI settings:', error);
       }
@@ -63,12 +55,12 @@ const Popup: React.FC = () => {
     const loadData = async () => {
       await loadSettings();
       await loadProfile();
+      await loadRecentResumes();
       setLoading(false);
     };
     loadData();
-  }, [settings]); // Add settings as a dependency
+  }, []); 
 
-  // Load user profile from storage
   const loadProfile = async () => {
     try {
       const data = await browser.storage.local.get('userProfile');
@@ -77,6 +69,57 @@ const Popup: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading profile:', error);
+    }
+  };
+
+  // Load recently generated resumes from storage
+  const loadRecentResumes = async () => {
+    try {
+      const data = await browser.storage.local.get('recentlyResumeList');
+      if (data.recentlyResumeList) {
+        setRecentResumes(data.recentlyResumeList);
+      }
+    } catch (error) {
+      console.error('Error loading recent resumes:', error);
+    }
+  };
+
+  // Copy resume content to clipboard
+  const copyResumeToClipboard = async (content: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopyStatus({ ...copyStatus, [id]: 'Copied!' });
+      setTimeout(() => {
+        setCopyStatus(prev => {
+          const newStatus = { ...prev };
+          delete newStatus[id];
+          return newStatus;
+        });
+      }, 2000);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      setCopyStatus({ ...copyStatus, [id]: 'Failed to copy' });
+      setTimeout(() => {
+        setCopyStatus(prev => {
+          const newStatus = { ...prev };
+          delete newStatus[id];
+          return newStatus;
+        });
+      }, 2000);
+    }
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return (
+        date.toLocaleDateString() +
+        ' ' +
+        date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      );
+    } catch (e) {
+      return dateString;
     }
   };
 
@@ -95,35 +138,16 @@ const Popup: React.FC = () => {
       setSaveStatus('Error saving settings');
     }
   };
-
-  // Auto-save settings with debounce
-  const debouncedSaveSettings = React.useCallback(
+  // No auto-save functionality - only update the state
+  const updateSettingsState = React.useCallback(
     (updatedSettings: OpenAISettings) => {
-      const saveWithDebounce = debounce(
-        async (settingsToSave: OpenAISettings) => {
-          try {
-            // Use utility function to stringify settings
-            const settingsJson = stringifyOpenAISettings(settingsToSave);
-            await browser.storage.local.set({
-              openAISettings: settingsJson,
-            });
-            setAutoSaveStatus('Auto-saved');
-            setTimeout(() => setAutoSaveStatus(''), 2000);
-          } catch (error) {
-            console.error('Error auto-saving settings:', error);
-            setAutoSaveStatus('Auto-save failed');
-            setTimeout(() => setAutoSaveStatus(''), 3000);
-          }
-        },
-        1000
-      );
-
-      saveWithDebounce(updatedSettings);
+      // Just update the state, don't save to storage
+      setSettings(updatedSettings);
     },
     []
   );
 
-  // Handle settings field changes
+  // Handle settings field changes - only update state, don't save
   const handleSettingChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -133,11 +157,10 @@ const Popup: React.FC = () => {
       ...settings,
       [name]: value,
     };
+    // Only update state, don't save to storage
     setSettings(updatedSettings);
-
-    // Trigger auto-save
-    debouncedSaveSettings(updatedSettings);
   };
+  console.log('Settings:', settings);
 
   return (
     <div className="w-96 p-4 font-sans">
@@ -159,19 +182,25 @@ const Popup: React.FC = () => {
       )}
 
       <div className="border border-gray-200 rounded overflow-hidden mb-4">
-        <Tabs.Root defaultValue="settings" className="w-full">
+        <Tabs.Root defaultValue="resumes" className="w-full">
           <Tabs.List className="flex bg-gray-100 border-b border-gray-200">
             <Tabs.Trigger
-              value="settings"
+              value="resumes"
               className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
             >
-              Settings
+              Recent Resumes
             </Tabs.Trigger>
             <Tabs.Trigger
               value="profile"
               className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
             >
               Profile
+            </Tabs.Trigger>
+            <Tabs.Trigger
+              value="settings"
+              className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
+            >
+              Settings
             </Tabs.Trigger>
           </Tabs.List>
 
@@ -288,6 +317,62 @@ const Popup: React.FC = () => {
               )}
             </Tabs.Content>
           </div>
+
+          {/* Recent Resumes Tab */}
+          <Tabs.Content value="resumes" className="p-4">
+            {loading && <div className="text-center py-4">Loading...</div>}
+
+            {!loading && recentResumes.length === 0 && (
+              <div className="text-center py-4">
+                <p className="mb-3 text-gray-600">
+                  No resumes generated yet. Use the context menu on job
+                  descriptions to generate resumes.
+                </p>
+              </div>
+            )}
+
+            {!loading && recentResumes.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="font-medium text-sm mb-2">
+                  Recently Generated Resumes
+                </h3>
+
+                {recentResumes.map(resume => (
+                  <Card
+                    key={resume.id}
+                    className="p-3 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <Badge variant="outline" className="text-xs">
+                        {formatDate(resume.date)}
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyResumeToClipboard(resume.content, resume.id)
+                        }
+                        className={`text-xs px-2 py-1 rounded ${
+                          copyStatus[resume.id]
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-primary-100 text-primary-800 hover:bg-primary-200'
+                        }`}
+                      >
+                        {copyStatus[resume.id] || 'Copy'}
+                      </button>
+                    </div>
+
+                    <div className="text-sm mb-2 line-clamp-2 text-gray-700">
+                      <strong>Job:</strong> {resume.jobDescription}
+                    </div>
+
+                    <div className="text-sm line-clamp-3 text-gray-600 bg-gray-50 p-2 rounded">
+                      {resume.preview}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </Tabs.Content>
         </Tabs.Root>
       </div>
 

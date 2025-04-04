@@ -13,10 +13,11 @@
     "activeTab",
     "storage",
     "contextMenus",
-    "notifications"
+    "notifications",
+    "scripting"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
   "__chrome|firefox__author": "abhijithvijayan",
   "__opera__developer": {

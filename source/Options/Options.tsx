@@ -1,26 +1,44 @@
 import * as React from 'react';
 import { browser } from 'webextension-polyfill-ts';
 import * as Tabs from '@radix-ui/react-tabs';
-import { UserProfile } from '@utils/aiWorkflow';
 import { profileToForm, formToProfile } from '@utils/profileConverters';
 import ManualProfileInput, { UserProfileForm } from './ManualProfileInput';
 import JsonProfileImport from './JsonProfileImport';
 import ResumeTemplateEditor from './ResumeTemplateEditor';
 import JobDescriptionInput from './JobDescriptionInput';
 import Logo from '@/components/Logo';
+import { UserProfile } from '@/types';
 
-// Debounce function to limit how often a function can be called
-const debounce = <F extends (...args: any[]) => any>(
+// Improved debounce function that allows input modifications during pending operations
+const debounce = <F extends (...args: any[]) => Promise<any>>(
   func: F,
   waitFor: number
 ): ((...args: Parameters<F>) => void) => {
   let timeout: ReturnType<typeof setTimeout> | null = null;
+  let latestArgs: Parameters<F> | null = null;
 
   return (...args: Parameters<F>): void => {
+    // Always update the latest args
+    latestArgs = args;
+
+    // Clear any existing timeout
     if (timeout !== null) {
       clearTimeout(timeout);
     }
-    timeout = setTimeout(() => func(...args), waitFor);
+
+    // Schedule a new operation with the latest args
+    timeout = setTimeout(async () => {
+      if (latestArgs) {
+        const argsToUse = latestArgs;
+        latestArgs = null; // Clear latest args
+
+        try {
+          await func(...argsToUse); // Execute with the latest args
+        } catch (error) {
+          console.error('Error in debounced function:', error);
+        }
+      }
+    }, waitFor);
   };
 };
 
@@ -95,36 +113,55 @@ const Options: React.FC = () => {
     }
   };
 
-  // Auto-save profile with debounce
-  const debouncedSaveProfile = React.useCallback(
-    (updatedProfile: UserProfileForm) => {
-      const saveWithDebounce = debounce(
-        async (profileToSave: UserProfileForm) => {
-          try {
-            // Convert UserProfileForm to UserProfile using utility function
-            const storageProfile = formToProfile(profileToSave);
-
-            await browser.storage.local.set({
-              userProfile: JSON.stringify(storageProfile),
-            });
-
-            setAutoSaveStatus('Auto-saved');
-            setTimeout(() => setAutoSaveStatus(''), 2000);
-          } catch (error) {
-            console.error('Error auto-saving profile:', error);
-            setAutoSaveStatus('Auto-save failed');
-            setTimeout(() => setAutoSaveStatus(''), 3000);
-          }
-        },
-        1000
+  // Reset profile to empty state
+  const resetProfile = async (): Promise<void> => {
+    try {
+      const emptyProfile: UserProfileForm = {
+        name: '',
+        title: '',
+        email: '',
+        phone: '',
+        location: '',
+        linkedin: '',
+        github: '',
+        website: '',
+        summary: '',
+        skills: '',
+        experience: '',
+        education: '',
+        certifications: '',
+        languages: '',
+      };
+      
+      // Update state with empty profile
+      setProfile(emptyProfile);
+      
+      // Save empty profile to storage
+      const storageProfile = formToProfile(emptyProfile);
+      await browser.storage.local.set({
+        userProfile: JSON.stringify(storageProfile),
+      });
+      
+      setStatus('Profile reset successfully!');
+      setTimeout(() => setStatus(''), 3000);
+    } catch (error) {
+      console.error('Error resetting profile:', error);
+      setStatus(
+        `Error resetting profile: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
+    }
+  };
 
-      saveWithDebounce(updatedProfile);
+  // No auto-save functionality - only update the state
+  const updateProfileState = React.useCallback(
+    (updatedProfile: UserProfileForm) => {
+      // Just update the state, don't save to storage
+      setProfile(updatedProfile);
     },
     []
   );
 
-  // Handle profile field changes
+  // Handle profile field changes - only update state, don't save
   const handleProfileChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ): void => {
@@ -133,10 +170,8 @@ const Options: React.FC = () => {
       ...profile,
       [name]: value,
     };
+    // Only update state, don't save to storage
     setProfile(updatedProfile);
-
-    // Trigger auto-save
-    debouncedSaveProfile(updatedProfile);
   };
 
   // Handle JSON input changes
@@ -148,112 +183,69 @@ const Options: React.FC = () => {
   };
 
   // Import profile from JSON
-  const importProfileFromJson = (): void => {
+  const importProfileFromJson = async (): Promise<void> => {
     try {
       if (!jsonInput.trim()) {
         setJsonError('Please enter JSON data');
         return;
       }
 
-      // Parse the JSON input
       const jsonData = JSON.parse(jsonInput);
 
-      // Check if it's the format with personalInfo or direct UserProfile format
-      const isCustomFormat = jsonData.personalInfo && jsonData.workExperience;
+      const requiredFields = [
+        'name',
+        'title',
+        'email',
+        'skills',
+        'experience',
+        'education',
+      ];
+      const missingFields = requiredFields.filter(field => !jsonData[field]);
 
-      // Convert to UserProfileForm format for the form
-      let newProfile: UserProfileForm;
-
-      if (isCustomFormat) {
-        // Convert from custom format to UserProfileForm
-        newProfile = {
-          name: jsonData.personalInfo.name || '',
-          title: '', // Not directly in the custom format
-          email: jsonData.personalInfo.email || '',
-          phone: jsonData.personalInfo.phone || '',
-          location: jsonData.education?.[0]?.location || '',
-          linkedin: jsonData.personalInfo.linkedin || '',
-          github: jsonData.personalInfo.github || '',
-          website: '',
-          summary: '', // Not directly in the custom format
-
-          // Convert skills arrays to comma-separated string
-          skills: [
-            ...(jsonData.technicalSkills?.languages || []),
-            ...(jsonData.technicalSkills?.frameworksAndTools || []),
-          ].join(', '),
-
-          // Convert work experience to JSON string
-          experience: JSON.stringify(
-            (jsonData.workExperience || []).map(exp => ({
-              company: exp.company,
-              title: exp.title,
-              date: exp.dateRange,
-              description: exp.experiencePoints
-                .filter(point => point.mustInclude)
-                .map(point => point.description),
-            })),
-            null,
-            2
-          ),
-
-          // Convert education to JSON string
-          education: JSON.stringify(
-            (jsonData.education || []).map(edu => ({
-              institution: edu.institution,
-              degree: edu.degree,
-              date: edu.dateRange,
-            })),
-            null,
-            2
-          ),
-
-          // Convert projects to certifications
-          certifications: JSON.stringify(
-            (jsonData.projects || []).map(proj => ({
-              name: proj.name,
-              issuer: proj.technologies || 'N/A',
-              date: proj.dateRange || 'N/A',
-            })),
-            null,
-            2
-          ),
-
-          // Languages field is empty as it's not directly in the custom format
-          languages: JSON.stringify([], null, 2),
-        };
-      } else {
-        // Assume it's already in UserProfile format
-        newProfile = {
-          name: jsonData.name || '',
-          title: jsonData.title || '',
-          email: jsonData.email || '',
-          phone: jsonData.phone || '',
-          location: jsonData.location || '',
-          linkedin: jsonData.linkedin || '',
-          github: jsonData.github || '',
-          website: jsonData.website || '',
-          summary: jsonData.summary || '',
-          skills: Array.isArray(jsonData.skills)
-            ? jsonData.skills.join(', ')
-            : '',
-          experience: JSON.stringify(jsonData.experience || [], null, 2),
-          education: JSON.stringify(jsonData.education || [], null, 2),
-          certifications: JSON.stringify(
-            jsonData.certifications || [],
-            null,
-            2
-          ),
-          languages: JSON.stringify(jsonData.languages || [], null, 2),
-        };
+      if (missingFields.length > 0) {
+        setJsonError(`Missing required fields: ${missingFields.join(', ')}`);
+        return;
       }
+
+      const newProfile: UserProfileForm = {
+        name: jsonData.name,
+        title: jsonData.title,
+        email: jsonData.email,
+        phone: jsonData.phone || '',
+        location: jsonData.location || '',
+        linkedin: jsonData.linkedin || '',
+        github: jsonData.github || '',
+        website: jsonData.website || '',
+        summary: jsonData.summary || '',
+        skills: Array.isArray(jsonData.skills)
+          ? jsonData.skills.join(', ')
+          : jsonData.skills,
+        experience: JSON.stringify(jsonData.experience || [], null, 2),
+        education: JSON.stringify(jsonData.education || [], null, 2),
+        certifications: JSON.stringify(jsonData.projects || [], null, 2),
+        languages: JSON.stringify(jsonData.languages || [], null, 2),
+      };
 
       setProfile(newProfile);
 
-      // Trigger auto-save after importing profile
-      debouncedSaveProfile(newProfile);
+      try {
+        // Convert UserProfileForm to UserProfile
+        const storageProfile = formToProfile(newProfile);
 
-      setStatus('Profile imported successfully!');
+        await browser.storage.local.set({
+          userProfile: JSON.stringify(storageProfile),
+        });
+
+        setStatus('Profile imported and saved successfully!');
+      } catch (storageError) {
+        console.error('Error saving imported profile to storage:', storageError);
+        setStatus(
+          `Profile imported but not saved: ${
+            storageError instanceof Error ? storageError.message : 'Unknown error'
+          }`
+        );
+      }
+
       setTimeout(() => setStatus(''), 3000);
 
       // Switch to manual input tab to show the imported data
@@ -296,13 +288,7 @@ const Options: React.FC = () => {
               value="manual"
               className="px-4 py-3 font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
             >
-              Manual Input
-            </Tabs.Trigger>
-            <Tabs.Trigger
-              value="json"
-              className="px-4 py-3 font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
-            >
-              JSON Import
+              Profile
             </Tabs.Trigger>
             <Tabs.Trigger
               value="template"
@@ -326,15 +312,11 @@ const Options: React.FC = () => {
               profile={profile}
               onProfileChange={handleProfileChange}
               onProfileUpdate={updatedProfile => {
+                // Only update state, don't save to storage
                 setProfile(updatedProfile);
-                debouncedSaveProfile(updatedProfile);
               }}
               onSave={saveProfile}
-            />
-          </Tabs.Content>
-
-          <Tabs.Content value="json" className="bg-white p-6">
-            <JsonProfileImport
+              onReset={resetProfile}
               jsonInput={jsonInput}
               jsonError={jsonError}
               onJsonInputChange={handleJsonInputChange}

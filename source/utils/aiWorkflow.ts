@@ -1,50 +1,14 @@
 import { browser } from 'webextension-polyfill-ts';
 import OpenAI from 'openai';
+import { generateText } from 'ai';
+
 import { debugLogger } from './debugLogger';
+import { OpenAISettings, UserProfile } from '@/types';
 
 // Singleton OpenAI client instance
 let openAIClientInstance: OpenAI | null = null;
 
 // Define the user profile interface
-export interface UserProfile {
-  name: string;
-  title: string;
-  email: string;
-  phone: string;
-  location: string;
-  linkedin?: string;
-  github?: string;
-  website?: string;
-  summary: string;
-  skills: string[];
-  experience: {
-    company: string;
-    title: string;
-    date: string;
-    description: string[];
-  }[];
-  education: {
-    institution: string;
-    degree: string;
-    date: string;
-  }[];
-  certifications?: {
-    name: string;
-    issuer: string;
-    date: string;
-  }[];
-  languages?: {
-    language: string;
-    proficiency: string;
-  }[];
-}
-
-// Define the OpenAI settings interface
-export interface OpenAISettings {
-  endpoint: string;
-  apiKey: string;
-  model: string;
-}
 
 // Default OpenAI settings
 export const defaultOpenAISettings: OpenAISettings = {
@@ -421,9 +385,9 @@ export async function analyzeJobDescription(
       // Make the API request with a proper AbortController for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        debugLogger.warn('API request timeout reached (30 seconds)');
+        debugLogger.warn('API request timeout reached');
         controller.abort();
-      }, 30000);
+      }, 120000);
 
       debugLogger.info('Making API request to analyze job description...');
       let response;
@@ -477,7 +441,7 @@ export async function analyzeJobDescription(
       }
 
       // Log response
-      debugLogger.info('API Response received');
+      debugLogger.info('API Response received: ' + JSON.stringify(response));
 
       // Extract and validate response content
       debugLogger.info('Extracting content from API response...');
@@ -644,6 +608,7 @@ export async function analyzeJobDescription(
 }
 
 // Generate tailored resume using OpenAI with improved error handling and retries
+// Generate tailored resume using OpenAI with improved error handling and retries
 export async function generateTailoredResume(
   jobDescription: string,
   profile: UserProfile,
@@ -658,40 +623,65 @@ export async function generateTailoredResume(
 ): Promise<string | null> {
   let retries = 0;
 
-  while (retries <= maxRetries) {
-    try {
-      // If analysis is not provided, analyze the job description
-      let jobAnalysis = analysis;
-      if (!jobAnalysis) {
-        jobAnalysis = await analyzeJobDescription(jobDescription, settings);
+  try {
+    // If analysis is not provided, analyze the job description
 
-        if (!jobAnalysis) {
-          throw new Error('Failed to analyze job description');
-        }
-      }
+    // Get or create OpenAI client
+    const openai = getOpenAIClient(settings);
 
-      // Get or create OpenAI client
-      const openai = getOpenAIClient(settings);
+    // Prepare messages
+    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      {
+        role: 'system',
+        content: `You are a professional resume optimizer. Create a tailored resume based on the job requirements and candidate profile.
 
-      // Prepare messages
-      const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-        {
-          role: 'system',
-          content:
-            'You are a professional resume writer that creates tailored resumes based on job descriptions and user profiles.',
-        },
-        {
-          role: 'user',
-          content: `Create a tailored resume for the following job description using the provided user profile and template.
+## Job Analysis
+
+
+
+## Candidate Profile
+
+
+
+## Resume Template Convention
+
+
+
+Instructions:
+1. MUST include all experience points and project points marked with "mustInclude": true
+2. Select and prioritize other content based on relevance to the job description
+3. Order technical skills by relevance to the job requirements
+4. Create a compelling professional summary highlighting the candidate's fit for this position
+5. For EACH project, include 3-5 bullet points that mix both relevant and less relevant content to the job description
+6. Output the COMPLETE LaTeX resume document that follows the provided template structure, including all imports, document class, and formatting commands
+7. For each experience and project bullet point, significantly expand with specific technical details, methodologies used, challenges overcome, and implementation approaches
+8. Add detailed context to demonstrate comprehensive understanding of technologies mentioned
+9. For each technology mentioned, elaborate on specific features or components you worked with
+10. Expand professional summary to include broader context about candidate's technical philosophy and approach
+11. Make the resume appear extremely thorough and perfectly tailored to the job while maintaining professional credibility
+12. Maintain LaTeX formatting but ensure the content appears substantial and comprehensive
+
+IMPORTANT: You MUST wrap your entire LaTeX code output inside <GENERATE> tags, for example:
+
+<GENERATE>
+\\documentclass[letterpaper,11pt]{article}
+\\usepackage{latexsym}
+...
+[COMPLETE RESUME CONTENT]
+...
+\\end{document}
+</GENERATE>
+
+The output should be a complete, compilable LaTeX document that can be directly saved and processed.
+DO NOT include any text outside the <GENERATE> tags. Your entire response should be the LaTeX document wrapped in <GENERATE> tags.`,
+      },
+      {
+        role: 'user',
+        content: `Create a tailored resume for the following job description using the provided user profile and template.
           
           Job Description:
           ${jobDescription}
-          
-          Job Analysis:
-          Keywords: ${jobAnalysis.keywords.join(', ')}
-          Requirements: ${jobAnalysis.requirements.join(', ')}
-          Responsibilities: ${jobAnalysis.responsibilities.join(', ')}
-          
+
           User Profile:
           ${JSON.stringify(profile, null, 2)}
           
@@ -699,82 +689,192 @@ export async function generateTailoredResume(
           ${template}
           
           Generate a complete resume that matches the template format and highlights the most relevant skills and experiences for this job.`,
-        },
-      ];
+      },
+    ];
 
-      // Log the request
-      debugLogger.info('Resume API Request - Model:' + settings.model);
-      debugLogger.info(
-        'Resume API Request - Messages:' + JSON.stringify(messages, null, 2)
+    // Log the request
+    debugLogger.info('Resume API Request - Model:' + settings.model);
+    debugLogger.info(
+      'Resume API Request - Messages:' + JSON.stringify(messages, null, 2)
+    );
+    debugLogger.info(
+      'Resume API Request - API Key:' +
+        (settings.apiKey ? 'sk-...' + settings.apiKey.slice(-4) : 'undefined')
+    );
+
+    // Make the API request with a proper AbortController for timeout
+    const controller = new AbortController();
+    // Use a shorter timeout (30 seconds) to prevent hanging
+    const timeoutId = setTimeout(() => {
+      debugLogger.warn(
+        'API request timeout reached (120 seconds) - aborting request'
       );
-      debugLogger.info(
-        'Resume API Request - API Key:' +
-          (settings.apiKey ? 'sk-...' + settings.apiKey.slice(-4) : 'undefined')
-      );
+      controller.abort();
+    }, 120000);
 
-      // Make the API request with a proper AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
+    // Calculate and log request size for debugging
+    const requestSize = JSON.stringify({
+      model: settings.model,
+      messages: messages,
+      temperature: 0.5,
+    }).length;
 
-      debugLogger.info('Making API request to generate resume...');
-      const requestOptions = {
-        model: settings.model,
-        messages: messages,
-        temperature: 0.5,
-      };
-      debugLogger.info(
-        'Request Options: ' + JSON.stringify(requestOptions, null, 2)
-      );
-      let response;
+    debugLogger.info(
+      `Making API request to generate resume... (request size: ${requestSize} bytes)`
+    );
+    debugLogger.info(
+      `Template size: ${template.length} bytes, Job description size: ${jobDescription.length} bytes`
+    );
+    const requestOptions = {
+      model: settings.model,
+      messages: messages,
+      temperature: 0.5,
+    };
+    debugLogger.info(
+      'Request Options: ' + JSON.stringify(requestOptions, null, 2)
+    );
+    let response;
 
-      try {
-        response = await openai.chat.completions.create(requestOptions);
-
-        clearTimeout(timeoutId);
-      } catch (apiError) {
-        clearTimeout(timeoutId);
-
-        if (apiError instanceof Error && apiError.name === 'AbortError') {
-          throw new Error('API request timed out after 60 seconds');
-        }
-
-        debugLogger.error('Error during API call: ' + String(apiError));
-        throw new Error(
-          `API call failed: ${apiError instanceof Error ? apiError.message : String(apiError)}`
+    try {
+      // If the request is very large, try with a trimmed version
+      if (requestSize > 100000) {
+        debugLogger.warn(
+          'Request size is very large (> 100KB), attempting with trimmed content...'
         );
-      }
 
-      // Log response
-      debugLogger.info('Resume API Response received');
+        // Create a trimmed version of the messages
+        const trimmedMessages = [
+          messages[0],
+          {
+            role: 'user',
+            content: `Create a tailored resume for the following job description using the provided user profile.
+              
+              Job Description:
+              ${jobDescription.substring(0, 1000)}...
 
-      const { content } = response.choices[0].message;
-      if (!content) {
-        throw new Error('No content in response');
-      }
+              User Profile:
+              ${JSON.stringify(
+                {
+                  name: profile.name,
+                  title: profile.title,
+                  email: profile.email,
+                  phone: profile.phone,
+                  location: profile.location,
+                  linkedin: profile.linkedin,
+                  github: profile.github,
+                  skills: profile.skills,
+                  experience: profile.experience.slice(0, 2),
+                  education: profile.education,
+                },
+                null,
+                2
+              )}
+              
+              Generate a complete resume that highlights the most relevant skills and experiences for this job.`,
+          },
+        ];
 
-      return content;
-    } catch (error) {
-      debugLogger.error(
-        `Error generating tailored resume (attempt ${retries + 1}/${maxRetries + 1}): ` +
-          String(error)
-      );
+        const trimmedRequestOptions = {
+          model: settings.model,
+          messages: trimmedMessages as any,
+          temperature: 0.5,
+        };
 
-      // eslint-disable-next-line no-plusplus
-      retries++;
-
-      if (retries <= maxRetries) {
-        debugLogger.info(
-          `Retrying resume generation (attempt ${retries + 1}/${maxRetries + 1})...`
-        );
-        // Add exponential backoff
-        // eslint-disable-next-line @typescript-eslint/no-loop-func
-        await new Promise(resolve => {
-          setTimeout(resolve, 1000 * 2 ** (retries - 1));
+        debugLogger.info('Sending trimmed request...');
+        response = await openai.chat.completions.create(trimmedRequestOptions, {
+          signal: controller.signal as any,
         });
       } else {
-        debugLogger.error('Maximum retry attempts reached.');
-        return null;
+        debugLogger.info('Sending full request...');
+        response = await openai.chat.completions.create(requestOptions, {
+          signal: controller.signal as any,
+        });
       }
+
+      clearTimeout(timeoutId);
+    } catch (apiError) {
+      clearTimeout(timeoutId);
+      debugLogger.info(
+        'API request for resume generation completed successfully'
+      );
+
+      if (apiError instanceof Error && apiError.name === 'AbortError') {
+        throw new Error('API request timed out after 60 seconds');
+      }
+
+      debugLogger.error('Error during API call: ' + String(apiError));
+      throw new Error(
+        `API call failed: ${apiError instanceof Error ? apiError.message : String(apiError)}`
+      );
+    }
+
+    // Log response
+    debugLogger.info('Resume API Response received');
+
+    const { content } = response.choices[0].message;
+    if (!content) {
+      throw new Error('No content in response');
+    }
+
+    // Extract content inside <GENERATE> tags
+    debugLogger.info('Extracting LaTeX content from response...');
+
+    // Check if content contains <GENERATE> tags
+    const generateTagRegex = /<GENERATE>([\s\S]*?)<\/GENERATE>/;
+    const match = content.match(generateTagRegex);
+
+    if (match && match[1]) {
+      // Found content inside <GENERATE> tags
+      const extractedContent = match[1].trim();
+      debugLogger.info(
+        `Successfully extracted LaTeX content (${extractedContent.length} bytes)`
+      );
+
+      // Return just the pure content without the tags
+      return extractedContent;
+    }
+
+    // No <GENERATE> tags found, check if it looks like LaTeX
+    debugLogger.warn(
+      'No <GENERATE> tags found in response, checking for LaTeX content'
+    );
+
+    // Check for common LaTeX patterns
+    if (
+      content.includes('\\documentclass') &&
+      content.includes('\\begin{document}')
+    ) {
+      // Looks like LaTeX, return it without wrapping
+      debugLogger.info('Found LaTeX content without tags');
+      return content.trim();
+    }
+
+    // Not sure if it's LaTeX, log a warning and wrap it anyway
+    debugLogger.warn(
+      'Response may not contain proper LaTeX, returning content as is'
+    );
+    return content.trim();
+  } catch (error) {
+    debugLogger.error(
+      `Error generating tailored resume (attempt ${retries + 1}/${maxRetries + 1}): ` +
+        String(error)
+    );
+
+    // eslint-disable-next-line no-plusplus
+    retries++;
+
+    if (retries <= maxRetries) {
+      debugLogger.info(
+        `Retrying resume generation (attempt ${retries + 1}/${maxRetries + 1})...`
+      );
+      // Add exponential backoff
+      // eslint-disable-next-line @typescript-eslint/no-loop-func
+      await new Promise(resolve => {
+        setTimeout(resolve, 1000 * 2 ** (retries - 1));
+      });
+    } else {
+      debugLogger.error('Maximum retry attempts reached.');
+      return null;
     }
   }
 
@@ -866,40 +966,278 @@ export async function runResumeWorkflow(
       await callbacks?.onError?.(error);
       throw error;
     }
-
-    await reportProgress('Starting analysis', 20);
-
-    // Call the analysis start callback
-    await callbacks?.onAnalysisStart?.();
-
-    // Analyze the job description first
-    await reportProgress('Analyzing job', 25);
-    const analysis = await analyzeJobDescription(jobDescription, settings);
-
-    if (!analysis) {
-      const error = new Error('Failed to analyze job description');
-      await callbacks?.onError?.(error);
-      throw error;
-    }
-
-    await reportProgress('Analysis complete', 50);
-
-    // Call the analysis complete callback
-    await callbacks?.onAnalysisComplete?.();
+    // Skip separate analysis and directly generate the resume
+    await reportProgress('Starting generation', 20);
 
     // Call the generation start callback
     await callbacks?.onGenerationStart?.();
 
-    await reportProgress('Starting generation', 60);
-
-    // Generate the tailored resume
-    const result = await generateTailoredResume(
-      jobDescription,
-      profile,
-      template,
-      settings,
-      analysis
+    debugLogger.info(
+      'Skipping separate analysis step and directly generating resume...'
     );
+
+    // Create a simplified version of the generateTailoredResume function
+    // that doesn't require a separate analysis step
+    const generateResume = async (): Promise<string | null> => {
+      try {
+        // Get or create OpenAI client
+        const openai = getOpenAIClient(settings);
+
+        // Prepare messages for a single request that both analyzes and generates
+        const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+          {
+            role: 'system',
+            content: `You are a professional resume writer that creates tailored resumes based on job descriptions and user profiles.
+              
+IMPORTANT: You MUST wrap your entire LaTeX code output inside <GENERATE> tags, for example:
+
+<GENERATE>
+\\documentclass[letterpaper,11pt]{article}
+\\usepackage{latexsym}
+...
+[COMPLETE RESUME CONTENT]
+...
+\\end{document}
+</GENERATE>
+
+The output should be a complete, compilable LaTeX document that can be directly saved and processed.
+DO NOT include any text outside the <GENERATE> tags. Your entire response should be the LaTeX document wrapped in <GENERATE> tags.`,
+          },
+          {
+            role: 'user',
+            content: `Create a tailored resume for the following job description using the provided user profile and template.
+        
+        First, analyze the job description to identify:
+        1. Key skills and technologies required
+        2. Important qualifications and experience needed
+        3. Main responsibilities of the role
+        
+        Then, create a resume that highlights the most relevant aspects of the candidate's profile for this specific job.
+        
+        Job Description:
+        ${jobDescription}
+        
+        User Profile:
+        ${JSON.stringify(profile, null, 2)}
+        
+        Resume Template:
+        ${template}
+        
+        Generate a complete resume that matches the template format and highlights the most relevant skills and experiences for this job.`,
+          },
+        ];
+
+        // Calculate and log request size for debugging
+        const requestSize = JSON.stringify({
+          model: settings.model,
+          messages: messages,
+          temperature: 0.5,
+        }).length;
+
+        debugLogger.info(
+          `Making combined API request... (request size: ${requestSize} bytes)`
+        );
+        debugLogger.info(
+          `Template size: ${template.length} bytes, Job description size: ${jobDescription.length} bytes`
+        );
+
+        // Prepare request options with AbortController and shorter timeout
+        debugLogger.info(
+          'Preparing request options with AbortController and 30s timeout'
+        );
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          debugLogger.warn(
+            'API request timeout reached (30 seconds) - aborting request'
+          );
+          controller.abort();
+        }, 30000); // 30 seconds timeout
+
+        const requestOptions = {
+          model: settings.model,
+          messages: messages,
+          temperature: 0.5,
+          max_tokens: 2000, // Add a max_tokens limit to prevent very long responses
+        };
+
+        let response;
+
+        try {
+          // If the request is very large, try with a trimmed version
+          if (requestSize > 100000) {
+            debugLogger.warn(
+              'Request size is very large (> 100KB), attempting with trimmed content...'
+            );
+
+            // Create a trimmed version of the messages
+            const trimmedMessages = [
+              messages[0],
+              {
+                role: 'user',
+                content: `Create a tailored resume for the following job description using the provided user profile.
+            
+            Job Description:
+            ${jobDescription.substring(0, 1000)}...
+            
+            User Profile:
+            ${JSON.stringify(
+              {
+                name: profile.name,
+                title: profile.title,
+                email: profile.email,
+                phone: profile.phone,
+                location: profile.location,
+                linkedin: profile.linkedin,
+                github: profile.github,
+                skills: profile.skills,
+                experience: profile.experience.slice(0, 2),
+                education: profile.education,
+              },
+              null,
+              2
+            )}
+            
+            Generate a complete resume that highlights the most relevant skills and experiences for this job.`,
+              },
+            ];
+
+            const trimmedRequestOptions = {
+              model: settings.model,
+              messages: trimmedMessages as any,
+              temperature: 0.5,
+            };
+
+            debugLogger.info('Sending trimmed request with timeout...');
+            try {
+              // Use direct approach with AbortController
+              debugLogger.info(
+                'Using direct API call approach with AbortController for trimmed request'
+              );
+              response = await openai.chat.completions.create(
+                trimmedRequestOptions,
+                { signal: controller.signal as any }
+              );
+              clearTimeout(timeoutId); // Clear timeout on success
+              debugLogger.info('Trimmed request successful');
+            } catch (err) {
+              debugLogger.error(`Error with trimmed request: ${String(err)}`);
+              throw err;
+            }
+          } else {
+            debugLogger.info('Sending full request with timeout...');
+            debugLogger.info(
+              'Using direct API call approach with AbortController for full request'
+            );
+            try {
+              response = await openai.chat.completions.create(requestOptions, {
+                signal: controller.signal as any,
+              });
+              clearTimeout(timeoutId); // Clear timeout on success
+              debugLogger.info('API request completed successfully');
+            } catch (apiError) {
+              clearTimeout(timeoutId); // Clear timeout on error
+
+              if (apiError instanceof Error && apiError.name === 'AbortError') {
+                debugLogger.error('API request was aborted due to timeout');
+                throw new Error('API request timed out after 30 seconds');
+              }
+
+              debugLogger.error('API call error: ' + String(apiError));
+              throw apiError; // Re-throw to be caught by the outer catch block
+            }
+          }
+
+          debugLogger.info('API request completed successfully');
+
+          // Add detailed response logging
+          debugLogger.info(
+            `Response received: ${JSON.stringify({
+              id: response.id,
+              model: response.model,
+              choices_length: response.choices?.length || 0,
+              usage: response.usage,
+            })}`
+          );
+          debugLogger.info('content:' + JSON.stringify(response));
+
+          if (!response.choices || response.choices.length === 0) {
+            debugLogger.error('No choices in response');
+            throw new Error('No choices in response');
+          }
+
+          if (!response.choices[0].message) {
+            debugLogger.error('No message in first choice');
+            throw new Error('No message in first choice');
+          }
+
+          const { content } = response.choices[0].message;
+          if (!content) {
+            debugLogger.error('No content in message');
+            throw new Error('No content in response');
+          }
+
+          // Log content details
+          debugLogger.info(`Content received, length: ${content.length}`);
+          debugLogger.info(`Content preview: ${content.substring(0, 100)}...`);
+
+          // Extract content inside <GENERATE> tags
+          debugLogger.info('Extracting LaTeX content from response...');
+
+          // Check if content contains <GENERATE> tags
+          const generateTagRegex = /<GENERATE>([\s\S]*?)<\/GENERATE>/;
+          const match = content.match(generateTagRegex);
+
+          if (match && match[1]) {
+            // Found content inside <GENERATE> tags
+            const extractedContent = match[1].trim();
+            debugLogger.info(
+              `Successfully extracted LaTeX content (${extractedContent.length} bytes)`
+            );
+
+            // Return just the pure content without the tags
+            return extractedContent;
+          }
+
+          // No <GENERATE> tags found, check if it looks like LaTeX
+          debugLogger.warn(
+            'No <GENERATE> tags found in response, checking for LaTeX content'
+          );
+
+          // Check for common LaTeX patterns
+          if (
+            content.includes('\\documentclass') &&
+            content.includes('\\begin{document}')
+          ) {
+            // Looks like LaTeX, wrap it in <GENERATE> tags
+            debugLogger.info('Found LaTeX content without tags');
+            return content.trim();
+          }
+
+          // Not sure if it's LaTeX, log a warning and wrap it anyway
+          debugLogger.warn(
+            'Response may not contain proper LaTeX, returning content as is'
+          );
+          return content.trim();
+        } catch (apiError) {
+          if (apiError instanceof Error && apiError.name === 'AbortError') {
+            throw new Error('API request timed out after 30 seconds');
+          }
+
+          debugLogger.error('Error during API call: ' + String(apiError));
+          throw new Error(
+            `API call failed: ${apiError instanceof Error ? apiError.message : String(apiError)}`
+          );
+        }
+      } catch (error) {
+        debugLogger.error('Error generating resume: ' + String(error));
+        return null;
+      }
+    };
+
+    // Generate the resume with the combined approach
+    await reportProgress('Processing', 40);
+    // Generate the tailored resume
+    const result = await generateResume();
 
     if (!result) {
       const error = new Error('Failed to generate resume');

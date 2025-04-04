@@ -48,60 +48,6 @@ if (window.location.search.includes('debug=true')) {
   }
 }
 
-// Function to copy text to clipboard with modern navigator.clipboard API and fallback
-async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    // Update debug status if available
-    updateDebugStatus('Copying to clipboard...');
-
-    // Try modern clipboard API first
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      try {
-        await navigator.clipboard.writeText(text);
-        console.log('Text copied to clipboard using navigator.clipboard');
-        showNotification('Resume copied to clipboard!');
-        return true;
-      } catch (clipboardError) {
-        console.warn(
-          'Navigator clipboard failed, falling back to legacy method:',
-          clipboardError
-        );
-        // Fallback to legacy method
-      }
-    }
-
-    // Legacy fallback method
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-
-    // Make the textarea out of viewport
-    textarea.style.position = 'fixed';
-    textarea.style.left = '-999999px';
-    textarea.style.top = '-999999px';
-
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-
-    // Copy the text
-    const successful = document.execCommand('copy');
-    document.body.removeChild(textarea);
-
-    if (successful) {
-      console.log('Text copied to clipboard successfully using legacy method');
-      showNotification('Resume copied to clipboard!');
-      return true;
-    }
-    console.error('Failed to copy text to clipboard');
-    showNotification('Failed to copy resume to clipboard!', 'error');
-    return false;
-  } catch (error) {
-    console.error('Error copying to clipboard:', error);
-    showNotification('Failed to copy resume to clipboard!', 'error');
-    return false;
-  }
-}
-
 // Make sure styles are only added once
 let stylesAdded = false;
 
@@ -368,16 +314,6 @@ browser.runtime.onMessage.addListener((message: any) => {
   updateDebugStatus(`Message received: ${message.action}`);
 
   try {
-    // Handle copyToClipboard action
-    if (message.action === 'copyToClipboard' && message.content) {
-      console.log(
-        'Copying to clipboard, content length:',
-        message.content.length
-      );
-      copyToClipboard(message.content);
-      return Promise.resolve({ success: true, action: 'copyToClipboard' });
-    }
-
     // Handle showLoadingToast action
     if (
       message.action === 'showLoadingToast' &&

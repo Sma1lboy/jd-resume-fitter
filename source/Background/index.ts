@@ -185,11 +185,36 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     });
 
     if (result) {
-      // Copy the result to clipboard
-      await sendTabMessage(tab.id, {
-        action: 'copyToClipboard',
-        content: result,
-      });
+      // Save the resume to storage for later access
+      try {
+        // Get existing resume list
+        const storageData =
+          await browser.storage.local.get('recentlyResumeList');
+        const recentlyResumeList = storageData.recentlyResumeList || [];
+
+        // Add new resume to the list (limit to 10 items)
+        const newResume = {
+          id: Date.now().toString(),
+          date: new Date().toISOString(),
+          content: result,
+          preview: result.substring(0, 100) + '...',
+          jobDescription: info.selectionText.substring(0, 100) + '...',
+        };
+
+        // Add to beginning of array and limit to 10 items
+        recentlyResumeList.unshift(newResume);
+        if (recentlyResumeList.length > 10) {
+          recentlyResumeList.pop();
+        }
+
+        // Save back to storage
+        await browser.storage.local.set({ recentlyResumeList });
+        debugLogger.info('Resume saved to storage for later access');
+      } catch (storageError) {
+        debugLogger.error(
+          'Error saving resume to storage: ' + String(storageError)
+        );
+      }
 
       // Show success notification
       await showNotification({

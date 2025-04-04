@@ -140,42 +140,68 @@ const JobDescriptionInput: React.FC<JobDescriptionInputProps> = ({
       setIsProcessing(false);
     }
 
-    // Helper function for the workflow approach
+    // Helper function for the workflow approach with timeout
     async function runWorkflowApproach() {
-      addLog('Starting resume workflow...');
-      const result = await runResumeWorkflow(jobDescription, {
-        onAnalysisStart: () => {
-          addLog('Starting job description analysis (workflow)...');
-          return Promise.resolve();
-        },
-        onAnalysisComplete: () => {
-          addLog('Job description analysis completed (workflow)');
-          return Promise.resolve();
-        },
-        onGenerationStart: () => {
-          addLog('Starting resume generation (workflow)...');
-          return Promise.resolve();
-        },
-        onGenerationComplete: () => {
-          addLog('Resume generation completed (workflow)');
-          return Promise.resolve();
-        },
-        onProgress: (phase, percentage) => {
-          addLog(`Progress: ${phase} - ${percentage}%`);
-          return Promise.resolve();
-        },
-        onError: error => {
-          addLog(`Workflow error: ${error.message}`);
-          return Promise.resolve();
-        },
+      addLog('Starting resume workflow with timeout protection...');
+
+      // Create a timeout promise
+      const timeoutPromise = new Promise<null>((_, reject) => {
+        setTimeout(
+          () => reject(new Error('Resume workflow timed out after 3 minutes')),
+          180000
+        ); // 3 minutes
       });
 
-      if (result) {
-        addLog('Resume generated successfully (workflow)!');
-        onStatusChange('Resume generated successfully!');
-      } else {
-        addLog('Failed to generate resume (workflow)');
-        onStatusChange('Failed to generate resume');
+      try {
+        // Race the workflow against the timeout
+        const result = await Promise.race([
+          runResumeWorkflow(jobDescription, {
+            onAnalysisStart: () => {
+              addLog('Starting job description analysis (workflow)...');
+              return Promise.resolve();
+            },
+            onAnalysisComplete: () => {
+              addLog('Job description analysis completed (workflow)');
+              return Promise.resolve();
+            },
+            onGenerationStart: () => {
+              addLog('Starting resume generation (workflow)...');
+              return Promise.resolve();
+            },
+            onGenerationComplete: () => {
+              addLog('Resume generation completed (workflow)');
+              return Promise.resolve();
+            },
+            onProgress: (phase, percentage) => {
+              addLog(`Progress: ${phase} - ${percentage}%`);
+              return Promise.resolve();
+            },
+            onError: error => {
+              addLog(`Workflow error: ${error.message}`);
+              return Promise.resolve();
+            },
+          }),
+          timeoutPromise,
+        ]);
+
+        if (result) {
+          addLog('Resume generated successfully (workflow)!');
+          onStatusChange('Resume generated successfully!');
+        } else {
+          addLog('Failed to generate resume (workflow)');
+          onStatusChange('Failed to generate resume');
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('timed out')) {
+          addLog(`Timeout error: ${error.message}`);
+          addLog('The API request is taking too long and has been aborted.');
+          onStatusChange('Error: API request timed out');
+        } else {
+          addLog(
+            `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
+          );
+          onStatusChange('Error: Failed to generate resume');
+        }
       }
     }
   };

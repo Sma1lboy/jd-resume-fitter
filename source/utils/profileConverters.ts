@@ -1,4 +1,4 @@
-import { UserProfile } from './aiWorkflow';
+import { UserProfile } from '@/types';
 import { UserProfileForm } from '../Options/ManualProfileInput';
 
 /**

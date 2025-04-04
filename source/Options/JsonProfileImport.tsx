@@ -17,14 +17,11 @@ const JsonProfileImport: React.FC<JsonProfileImportProps> = ({
 }) => {
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4 text-gray-700">
-        Import Profile from JSON
-      </h2>
       <div className="mb-4">
         <p className="text-sm text-gray-600 mb-2">
           Paste your JSON profile data below. The format should match the
-          UserProfile interface or include personalInfo and workExperience
-          objects.
+          UserProfile interface with required fields like name, title, email,
+          skills, experience, and education.
         </p>
         <TextareaField
           label="JSON Data"
@@ -36,13 +33,15 @@ const JsonProfileImport: React.FC<JsonProfileImportProps> = ({
         />
         {jsonError && <p className="mt-2 text-sm text-red-500">{jsonError}</p>}
       </div>
-      <button
-        type="button"
-        onClick={onImportProfile}
-        className="bg-primary-500 hover:bg-primary-600 text-primary-foreground font-medium py-2 px-4 rounded shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2"
-      >
-        Import Profile
-      </button>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={onImportProfile}
+          className="bg-primary-500 hover:bg-primary-600 text-primary-foreground font-medium py-2 px-4 rounded shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2"
+        >
+          Import Profile
+        </button>
+      </div>
     </div>
   );
 };
