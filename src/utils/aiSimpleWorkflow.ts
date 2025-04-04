@@ -108,8 +108,8 @@ export async function generateTailoredResumeSimple(
   template: string,
   settings: OpenAISettings
 ): Promise<string> {
-  const prompt = `Create a tailored resume for the following job description using the provided user profile and template.
-  
+  const prompt = `You are a professional resume optimizer. Create a tailored resume based on the job requirements and candidate profile.
+
 Job Description:
 ${jobDescription}
 
@@ -119,13 +119,27 @@ ${JSON.stringify(userProfile, null, 2)}
 Resume Template:
 ${template}
 
-Your task is to analyze the job description, identify key requirements and skills needed, and create a resume 
-that highlights the most relevant aspects of the user's profile for this specific position.
+Instructions:
+1. MUST include all critical work experience and skills most relevant to the job description
+2. Select and prioritize content based on relevance to the job description
+3. Order technical skills by relevance to the job requirements
+4. Create a compelling professional summary highlighting the candidate's fit for this position
+5. For EACH experience entry, include 3-5 bullet points that demonstrate relevant accomplishments
+6. Output the COMPLETE resume document that follows the provided template structure
+7. For each experience bullet point, significantly expand with specific technical details, methodologies used, challenges overcome, and implementation approaches
+8. Add detailed context to demonstrate comprehensive understanding of technologies mentioned
+9. For each technology mentioned, elaborate on specific features or components worked with
+10. Expand professional summary to include broader context about candidate's technical philosophy and approach
+11. Make the resume appear extremely thorough and perfectly tailored to the job while maintaining professional credibility
+12. Maintain proper formatting but ensure the content appears substantial and comprehensive
 
-IMPORTANT: You MUST wrap your entire output document inside <CONTENT> tags, like this:
-<CONTENT>
-[Resume content here]
-</CONTENT>`;
+IMPORTANT: You MUST wrap your entire output document inside <GENERATE> tags, like this:
+<GENERATE>
+[Complete resume content here]
+</GENERATE>
+
+The output should be a complete resume document.
+DO NOT include any text outside the <GENERATE> tags. Your entire response should be the resume document wrapped in <GENERATE> tags.`;
 
   try {
     const provider = createProvider(settings);
@@ -135,10 +149,10 @@ IMPORTANT: You MUST wrap your entire output document inside <CONTENT> tags, like
       model: provider(modelName),
       prompt,
       temperature: 0.3,
-      system: `You are an expert resume writer. Analyze the job description and create a tailored resume.`,
+      system: `You are an expert resume writer specializing in creating highly tailored, professional resumes. Analyze job descriptions thoroughly and create resumes that perfectly match the requirements.`,
     });
 
-    return extractMarkedContent(text);
+    return extractMarkedContent(text, '<GENERATE>', '</GENERATE>');
   } catch (error) {
     logger.error('Error generating tailored resume: ' + String(error));
     throw new Error(`Failed to generate resume: ${error instanceof Error ? error.message : String(error)}`);

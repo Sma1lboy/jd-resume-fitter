@@ -6,3 +6,15 @@
 @custom-variant dark (&:is(.dark *));
 @tailwind components;
 @tailwind utilities;
+
+/* Custom utility classes */
+@layer utilities {
+  .scrollbar-invisible {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-invisible::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+}

@@ -1,57 +1,6 @@
 import { browser } from 'webextension-polyfill-ts';
-import { createDebugConsole, addLogToDebugConsole, Logger, logger } from '../utils/logger';
-
-// Check if debug mode is enabled
-const isDebugMode = Logger.isContentScriptDebugMode();
-
-logger.info('Resume Generator content script loaded');
-logger.info('Content script URL:', window.location.href);
-logger.info('Browser object available:', !!browser);
-
-// Create debug console if in debug mode
-if (isDebugMode && document.body) {
-  createDebugConsole();
-  logger.debug('Debug console created');
-} else if (isDebugMode) {
-  window.addEventListener('DOMContentLoaded', () => {
-    createDebugConsole();
-    logger.debug('Debug console created (delayed)');
-  });
-}
 
 let isInitialized = false;
-
-/**
- * Creates a visual indicator showing the ContentScript is loaded
- */
-const createDebugIndicator = () => {
-  if (!isDebugMode) return;
-  
-  const debugElement = document.createElement('div');
-  debugElement.id = 'resume-generator-debug';
-  debugElement.style.position = 'fixed';
-  debugElement.style.bottom = '5px';
-  debugElement.style.left = '5px';
-  debugElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-  debugElement.style.color = 'white';
-  debugElement.style.padding = '5px';
-  debugElement.style.borderRadius = '3px';
-  debugElement.style.fontSize = '10px';
-  debugElement.style.zIndex = '9999';
-  debugElement.textContent = 'Resume Generator loaded';
-  
-  document.body.appendChild(debugElement);
-  logger.debug('Debug indicator added to page');
-};
-
-if (isDebugMode) {
-  if (document.body) {
-    createDebugIndicator();
-  } else {
-    window.addEventListener('DOMContentLoaded', createDebugIndicator);
-  }
-}
-
 let stylesAdded = false;
 
 /**
@@ -134,7 +83,6 @@ function ensureToastStyles() {
 
   document.head.appendChild(style);
   stylesAdded = true;
-  logger.debug('Toast styles added to page');
 }
 
 /**
@@ -156,24 +104,9 @@ function getToastContainer(): HTMLElement {
     document.body.appendChild(toastContainer);
 
     ensureToastStyles();
-    logger.debug('Toast container created');
   }
 
   return toastContainer;
-}
-
-/**
- * Updates debug status indicator
- */
-function updateDebugStatus(status: string) {
-  if (!isDebugMode) return;
-  
-  const debugIndicator = document.getElementById('resume-generator-debug');
-  if (debugIndicator) {
-    const timestamp = new Date().toLocaleTimeString();
-    debugIndicator.textContent = `${status} at ${timestamp}`;
-    logger.debug(`Status updated: ${status}`);
-  }
 }
 
 /**
@@ -191,7 +124,6 @@ function showNotification(
     toast.textContent = message;
 
     toastContainer.appendChild(toast);
-    logger.debug(`Notification shown: ${message} (${type})`);
 
     setTimeout(() => {
       toast.style.opacity = '0';
@@ -201,23 +133,21 @@ function showNotification(
       setTimeout(() => {
         if (toastContainer.contains(toast)) {
           toastContainer.removeChild(toast);
-          logger.debug('Notification removed');
         }
 
         if (toastContainer.childNodes.length === 0) {
           try {
             if (document.body.contains(toastContainer)) {
               document.body.removeChild(toastContainer);
-              logger.debug('Toast container removed');
             }
-          } catch (removeError) {
-            logger.warn('Error removing toast container:', removeError);
+          } catch (error) {
+            console.warn('Error removing toast container:', error);
           }
         }
       }, 300);
     }, 3000);
   } catch (error) {
-    logger.error('Error showing notification:', error);
+    console.error('Error showing notification:', error);
   }
 }
 
@@ -244,12 +174,9 @@ function showLoadingToast(id: string, message: string): void {
       toast.appendChild(messageSpan);
 
       toastContainer.appendChild(toast);
-      logger.debug(`Loading toast shown: ${id} - ${message}`);
     }
-
-    updateDebugStatus(`Loading toast shown: ${message}`);
   } catch (error) {
-    logger.error('Error showing loading toast:', error);
+    console.error('Error showing loading toast:', error);
   }
 }
 
@@ -263,51 +190,45 @@ function updateLoadingToast(id: string, message: string): void {
       const messageSpan = toast.querySelector('span');
       if (messageSpan) {
         messageSpan.textContent = message;
-        logger.debug(`Toast updated: ${id} - ${message}`);
       }
     }
   } catch (error) {
-    logger.error('Error updating loading toast:', error);
+    console.error('Error updating loading toast:', error);
   }
 }
 
 /**
- * Hides a loading toast by ID
+ * Hides a loading toast
  */
 function hideLoadingToast(id: string): void {
   try {
     const toast = document.getElementById(id);
-    const toastContainer = document.getElementById(
-      'resume-generator-toast-container'
-    );
-
-    if (toast && toastContainer) {
+    if (toast) {
       toast.style.opacity = '0';
       toast.style.transform = 'translateY(16px)';
       toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
 
       setTimeout(() => {
-        if (toastContainer.contains(toast)) {
+        const toastContainer = document.getElementById(
+          'resume-generator-toast-container'
+        );
+        if (toastContainer && toastContainer.contains(toast)) {
           toastContainer.removeChild(toast);
-          logger.debug(`Toast hidden and removed: ${id}`);
-        }
 
-        if (toastContainer.childNodes.length === 0) {
-          try {
-            if (document.body.contains(toastContainer)) {
-              document.body.removeChild(toastContainer);
-              logger.debug('Toast container removed after hiding toast');
+          if (toastContainer.childNodes.length === 0) {
+            try {
+              if (document.body.contains(toastContainer)) {
+                document.body.removeChild(toastContainer);
+              }
+            } catch (error) {
+              console.warn('Error removing toast container:', error);
             }
-          } catch (removeError) {
-            logger.warn('Error removing toast container:', removeError);
           }
         }
       }, 300);
-
-      updateDebugStatus(`Toast hidden: ${id}`);
     }
   } catch (error) {
-    logger.error('Error hiding loading toast:', error);
+    console.error('Error hiding loading toast:', error);
   }
 }
 
@@ -315,19 +236,6 @@ function hideLoadingToast(id: string): void {
  * Message listener for background script communication
  */
 browser.runtime.onMessage.addListener((message: any) => {
-  if (message.action === 'debugLog') {
-    console.log(`[DEBUG LOG] ${message.level}: ${message.message}`);
-
-    if (document.getElementById('resume-generator-debug-console')) {
-      addLogToDebugConsole(message.message, message.level);
-    }
-
-    return Promise.resolve({ success: true, action: 'debugLog' });
-  }
-  
-  logger.debug('Message received:', message);
-  updateDebugStatus(`Message received: ${message.action}`);
-
   try {
     if (
       message.action === 'showLoadingToast' &&
@@ -335,12 +243,12 @@ browser.runtime.onMessage.addListener((message: any) => {
       message.message
     ) {
       showLoadingToast(message.id, message.message);
-      return Promise.resolve({ success: true, action: 'showLoadingToast' });
+      return Promise.resolve({ success: true });
     }
 
     if (message.action === 'hideLoadingToast' && message.id) {
       hideLoadingToast(message.id);
-      return Promise.resolve({ success: true, action: 'hideLoadingToast' });
+      return Promise.resolve({ success: true });
     }
 
     if (
@@ -349,17 +257,16 @@ browser.runtime.onMessage.addListener((message: any) => {
       message.message
     ) {
       updateLoadingToast(message.id, message.message);
-      return Promise.resolve({ success: true, action: 'updateLoadingToast' });
+      return Promise.resolve({ success: true });
     }
 
-    logger.warn('Unknown action received:', message.action);
     return Promise.resolve({
       success: false,
       error: 'Unknown action',
       receivedAction: message.action,
     });
   } catch (error) {
-    logger.error('Error handling message in content script:', error);
+    console.error('Error handling message in content script:', error);
     return Promise.resolve({ success: false, error: String(error) });
   }
 });
@@ -369,32 +276,19 @@ browser.runtime.onMessage.addListener((message: any) => {
  */
 function initialize() {
   if (isInitialized) return;
-
   isInitialized = true;
-  logger.info('Resume Generator content script initialized');
-
+  
+  // Notify background script that content script is ready
   try {
-    browser.runtime
-      .sendMessage({ action: 'contentScriptReady' })
-      .catch(error =>
-        logger.warn('Could not notify background script:', error)
-      );
+    browser.runtime.sendMessage({ action: 'contentScriptReady' });
   } catch (error) {
-    logger.warn('Error notifying background script:', error);
+    console.warn('Error notifying background script:', error);
   }
 }
 
-if (
-  document.readyState === 'complete' ||
-  document.readyState === 'interactive'
-) {
-  initialize();
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initialize);
 } else {
-  window.addEventListener('DOMContentLoaded', initialize);
+  initialize();
 }
-
-setTimeout(initialize, 1000);
-
-logger.info('Resume Generator message listener initialized');
-
-export {};

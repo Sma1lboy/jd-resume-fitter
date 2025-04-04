@@ -334,39 +334,41 @@ const Popup: React.FC = () => {
                   Recently Generated Resumes
                 </h3>
 
-                {recentResumes.map(resume => (
-                  <Card
-                    key={resume.id}
-                    className="p-3 shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <Badge variant="outline" className="text-xs">
-                        {formatDate(resume.date)}
-                      </Badge>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          copyResumeToClipboard(resume.content, resume.id)
-                        }
-                        className={`text-xs px-2 py-1 rounded ${
-                          copyStatus[resume.id]
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-primary-100 text-primary-800 hover:bg-primary-200'
-                        }`}
-                      >
-                        {copyStatus[resume.id] || 'Copy'}
-                      </button>
-                    </div>
+                <div className="max-h-80 overflow-y-auto scrollbar-invisible pr-1">
+                  {recentResumes.map(resume => (
+                    <Card
+                      key={resume.id}
+                      className="p-3 shadow-sm hover:shadow-md transition-shadow mb-3"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <Badge variant="outline" className="text-xs">
+                          {formatDate(resume.date)}
+                        </Badge>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            copyResumeToClipboard(resume.content, resume.id)
+                          }
+                          className={`text-xs px-2 py-1 rounded ${
+                            copyStatus[resume.id]
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-primary-100 text-primary-800 hover:bg-primary-200'
+                          }`}
+                        >
+                          {copyStatus[resume.id] || 'Copy'}
+                        </button>
+                      </div>
 
-                    <div className="text-sm mb-2 line-clamp-2 text-gray-700">
-                      <strong>Job:</strong> {resume.jobDescription}
-                    </div>
+                      <div className="text-sm mb-2 line-clamp-2 text-gray-700">
+                        <strong>Job:</strong> {resume.jobDescription}
+                      </div>
 
-                    <div className="text-sm line-clamp-3 text-gray-600 bg-gray-50 p-2 rounded">
-                      {resume.preview}
-                    </div>
-                  </Card>
-                ))}
+                      <div className="text-sm line-clamp-3 text-gray-600 bg-gray-50 p-2 rounded">
+                        {resume.preview}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
               </div>
             )}
           </Tabs.Content>

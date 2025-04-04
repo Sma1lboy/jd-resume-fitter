@@ -48,9 +48,14 @@ async function getStorageItem<T>(
     const data = await Promise.race([storagePromise, timeoutPromise]) as Record<string, any>;
     logger.info(`Storage data for ${key}: ${data && data[key] ? 'Found' : 'Not found'}`);
     
+    const nonJsonKeys = ['resumeTemplate'];
+    
     if (data && data[key]) {
       try {
-        // Try to parse JSON data
+        if (nonJsonKeys.includes(key)) {
+          return data[key] as T;
+        }
+        
         if (typeof data[key] === 'string') {
           return JSON.parse(data[key]);
         }
@@ -81,10 +86,12 @@ async function setStorageItem<T>(
   try {
     logger.info(`Saving ${key} to ${useSync ? 'sync' : 'local'} storage...`);
     
+    const nonJsonKeys = ['resumeTemplate'];
+    
     let valueToStore = value;
     
-    // Convert to JSON string if not already a string
-    if (typeof value === 'object') {
+    // 仅对非特殊键的对象进行JSON序列化
+    if (typeof value === 'object' && !nonJsonKeys.includes(key)) {
       valueToStore = JSON.stringify(value) as any;
     }
     

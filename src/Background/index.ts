@@ -1,6 +1,6 @@
 import { browser, Notifications, Runtime } from 'webextension-polyfill-ts';
-import { runResumeWorkflow } from '../utils/aiWorkflow';
-import { logger } from '../utils/logger';
+import { generateTailoredResumeSimple } from '@/utils/aiSimpleWorkflow';
+import { getOpenAISettings, getResumeTemplate, getUserProfile } from '@/utils/config';
 
 const CONTEXT_MENU_ID = 'GENERATE_RESUME_SNIPPET';
 let isWorkflowRunning = false;
@@ -10,7 +10,7 @@ async function createContextMenu() {
   try {
     // First remove any existing context menus to avoid duplicates
     await browser.contextMenus.removeAll();
-    logger.info('Removed existing context menus');
+    console.info('Removed existing context menus');
 
     // Create context menu item
     browser.contextMenus.create({
@@ -19,79 +19,46 @@ async function createContextMenu() {
       contexts: ['selection'], // Only show when text is selected
     });
 
-    logger.info('Context menu created successfully.');
+    console.info('Context menu created successfully.');
   } catch (error) {
-    logger.error('Error creating context menu: ' + String(error));
+    console.error('Error creating context menu: ' + String(error));
   }
 }
 
 // Create context menu when extension is installed
 browser.runtime.onInstalled.addListener((): void => {
-  logger.info('🦊 Extension installed');
+  console.info('Extension installed');
   createContextMenu();
 });
 
 // Also create the context menu when the service worker starts
-// This ensures it's available even if the onInstalled event doesn't fire
 createContextMenu();
 
-// Helper function to send messages to content script with error handling
+// Helper function to send messages to content script
 async function sendTabMessage(tabId: number, message: any): Promise<any> {
   try {
     return await browser.tabs.sendMessage(tabId, message);
   } catch (error) {
-    logger.error('Error sending message to tab: ' + String(error));
-    // If the content script isn't loaded yet, we might need to inject it
-    try {
-      await browser.tabs.executeScript(tabId, {
-        file: '../contentScript.js',
-      });
-      // Try sending the message again after injecting the script
-      return await browser.tabs.sendMessage(tabId, message);
-    } catch (injectError) {
-      logger.error(
-        'Failed to inject content script: ' + String(injectError)
-      );
-      throw error;
-    }
+    console.error('Error sending message to tab: ' + String(error));
+    throw error;
   }
 }
 
-// Function to create and show a notification with retry
+// Function to create and show a notification
 async function showNotification(
-  options: Notifications.CreateNotificationOptions,
-  maxRetries = 3
+  options: Notifications.CreateNotificationOptions
 ): Promise<string> {
-  let retries = 0;
-
-  while (retries <= maxRetries) {
-    try {
-      return await browser.notifications.create(options);
-    } catch (error) {
-      logger.error(
-        `Notification error (attempt ${retries + 1}/${maxRetries + 1}): ` +
-          String(error)
-      );
-      // eslint-disable-next-line no-plusplus
-      retries++;
-
-      if (retries <= maxRetries) {
-        await new Promise(resolve => {
-          setTimeout(resolve, 500);
-        });
-      } else {
-        logger.error('Maximum retry attempts reached for notification.');
-        throw error;
-      }
-    }
+  try {
+    return await browser.notifications.create(options);
+  } catch (error) {
+    console.error('Notification error: ' + String(error));
+    throw error;
   }
-
-  throw new Error('Failed to show notification after retries');
 }
 
-// Listener for context menu clicks with debouncing
+// Listener for context menu clicks
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
-  logger.info('Context menu clicked with ID: ' + info.menuItemId);
+  console.info('Context menu clicked with ID: ' + info.menuItemId);
 
   // Exit early if workflow is already running or if menu item doesn't match
   if (
@@ -100,7 +67,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     !info.selectionText ||
     !tab?.id
   ) {
-    logger.info(
+    console.info(
       isWorkflowRunning
         ? 'Ignoring click - workflow already running'
         : 'Ignoring click - conditions not met'
@@ -111,14 +78,6 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
   // Set the flag to prevent multiple workflows
   isWorkflowRunning = true;
 
-  logger.info('Starting resume generation workflow...');
-  logger.info(
-    'Selected Text (Job Description): ' +
-      (info.selectionText
-        ? info.selectionText.substring(0, 100) + '...'
-        : 'No text selected')
-  );
-
   // Keep track of the loading notification ID
   const loadingNotificationId = 'resume-generator-loading';
 
@@ -127,56 +86,39 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     await sendTabMessage(tab.id, {
       action: 'showLoadingToast',
       id: loadingNotificationId,
-      message: 'Generating resume snippet...',
+      message: 'Generating resume...',
     });
 
-    // Create our progress reporting function
-    const updateProgress = async (phase: string, percentage: number) => {
-      logger.info(`Progress update: ${phase} ${percentage}%`);
-      await sendTabMessage(tab.id, {
-        action: 'updateLoadingToast',
-        id: loadingNotificationId,
-        message: `${phase} (${percentage}%)...`,
-      });
-    };
+    // Get user profile and other necessary data
+    const userProfile = await getUserProfile();
+    if (!userProfile) {
+      throw new Error('User profile not found. Please set up your profile first.');
+    }
 
-    // Run the resume workflow with comprehensive progress updates and error handling
-    const result = await runResumeWorkflow(info.selectionText, {
-      onAnalysisStart: async () => {
-        logger.info('Analysis started callback triggered');
-        await updateProgress('Analyzing job description', 25);
-      },
-      onAnalysisComplete: async () => {
-        logger.info('Analysis completed callback triggered');
-        await updateProgress('Analysis complete', 50);
-      },
-      onGenerationStart: async () => {
-        logger.info('Generation started callback triggered');
-        await updateProgress('Generating resume', 60);
-      },
-      onGenerationComplete: async () => {
-        logger.info('Generation completed callback triggered');
-        await updateProgress('Resume generated', 90);
-      },
-      onProgress: updateProgress,
-      onError: async error => {
-        logger.error(
-          'Workflow error caught in callback: ' + String(error)
-        );
-        await sendTabMessage(tab.id, {
-          action: 'hideLoadingToast',
-          id: loadingNotificationId,
-        });
+    const template = await getResumeTemplate();
+    if (!template) {
+      throw new Error('Resume template not found. Please set up a template first.');
+    }
 
-        // Show error notification
-        await showNotification({
-          type: 'basic',
-          iconUrl: browser.runtime.getURL('assets/icons/favicon-128.png'),
-          title: 'Resume Generator - Error',
-          message: `Error: ${error.message || 'Unknown error'}`,
-        });
-      },
+    const settings = await getOpenAISettings();
+    if (!settings.apiKey) {
+      throw new Error('OpenAI API key not found. Please set up your API key first.');
+    }
+
+    // Update progress notification
+    await sendTabMessage(tab.id, {
+      action: 'updateLoadingToast',
+      id: loadingNotificationId,
+      message: 'Creating tailored resume...',
     });
+
+    // Generate resume
+    const result = await generateTailoredResumeSimple(
+      info.selectionText,
+      userProfile,
+      template,
+      settings
+    );
 
     // Hide loading notification
     await sendTabMessage(tab.id, {
@@ -188,8 +130,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
       // Save the resume to storage for later access
       try {
         // Get existing resume list
-        const storageData =
-          await browser.storage.local.get('recentlyResumeList');
+        const storageData = await browser.storage.local.get('recentlyResumeList');
         const recentlyResumeList = storageData.recentlyResumeList || [];
 
         // Add new resume to the list (limit to 10 items)
@@ -209,11 +150,8 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 
         // Save back to storage
         await browser.storage.local.set({ recentlyResumeList });
-        logger.info('Resume saved to storage for later access');
       } catch (storageError) {
-        logger.error(
-          'Error saving resume to storage: ' + String(storageError)
-        );
+        console.error('Error saving resume to storage: ' + String(storageError));
       }
 
       // Show success notification
@@ -223,8 +161,6 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         title: 'Resume Generator',
         message: 'Resume snippet generated and copied to clipboard!',
       });
-
-      logger.info('Resume workflow completed successfully');
     } else {
       // Show error notification if no result but no exception
       await showNotification({
@@ -233,12 +169,8 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         title: 'Resume Generator - Error',
         message: 'Failed to generate resume snippet. Please try again.',
       });
-
-      logger.info('Resume workflow completed with no result');
     }
   } catch (error) {
-    logger.error('Uncaught error in resume workflow: ' + String(error));
-
     // Make sure to hide the loading toast if there's an uncaught error
     try {
       await sendTabMessage(tab.id, {
@@ -246,9 +178,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         id: loadingNotificationId,
       });
     } catch (toastError) {
-      logger.error(
-        'Error hiding loading toast after error: ' + String(toastError)
-      );
+      console.error('Error hiding loading toast after error: ' + String(toastError));
     }
 
     // Show error notification
@@ -260,26 +190,25 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
     } catch (notificationError) {
-      logger.error(
-        'Failed to show error notification: ' + String(notificationError)
-      );
+      console.error('Failed to show error notification: ' + String(notificationError));
     }
   } finally {
     // Always reset the workflow flag when done
     isWorkflowRunning = false;
-    logger.info('Resume workflow complete, ready for next request');
   }
 });
 
-// Message listener with improved error handling
+// Message listener
 browser.runtime.onMessage.addListener(
   (message: unknown, sender: Runtime.MessageSender) => {
-    logger.info(
-      'Message received in background: ' + JSON.stringify(message)
-    );
-    logger.info('Message sender: ' + JSON.stringify(sender));
-
-    // Handle messages if needed
-    return Promise.resolve({ status: 'Received' });
+    if (message && typeof message === 'object' && 'action' in message) {
+      if (message.action === 'contentScriptReady') {
+        console.debug('Content script ready notification received');
+        return Promise.resolve({ success: true });
+      }
+    }
+    
+    // Default response
+    return Promise.resolve({ success: false });
   }
 );
