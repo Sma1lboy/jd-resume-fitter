@@ -19,6 +19,12 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["pdf-worker/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "__chrome|firefox__author": "abhijithvijayan",
   "__opera__developer": {
     "name": "abhijithvijayan"
@@ -53,7 +59,8 @@
         "https://*/*"
       ],
       "js": [
-        "js/contentScript.bundle.js"
+        "js/contentScript.bundle.js",
+        "pdf-worker/pdf.worker.min.mjs"
       ],
       "run_at": "document_idle"
     }

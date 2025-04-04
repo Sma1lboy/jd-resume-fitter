@@ -6,16 +6,18 @@ import { UserProfileForm } from './tabs/ManualProfileInput';
 import Logo from '@/components/Logo';
 import { UserProfile } from '@/types';
 import { ProfileTab, TemplateTab, JobDescriptionTab } from './tabs';
+import DebugSettings from './DebugSettings';
 
 // Improved debounce function that allows input modifications during pending operations
+// and includes a cancel method for flexibility
 const debounce = <F extends (...args: any[]) => Promise<any>>(
   func: F,
   waitFor: number
-): ((...args: Parameters<F>) => void) => {
+) => {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   let latestArgs: Parameters<F> | null = null;
 
-  return (...args: Parameters<F>): void => {
+  const debouncedFunc = (...args: Parameters<F>): void => {
     // Always update the latest args
     latestArgs = args;
 
@@ -38,6 +40,17 @@ const debounce = <F extends (...args: any[]) => Promise<any>>(
       }
     }, waitFor);
   };
+
+  // Add a cancel method to clear the timeout
+  (debouncedFunc as any).cancel = () => {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+      timeout = null;
+    }
+    latestArgs = null;
+  };
+
+  return debouncedFunc as ((...args: Parameters<F>) => void) & { cancel: () => void };
 };
 
 const Options: React.FC = () => {
@@ -90,15 +103,69 @@ const Options: React.FC = () => {
       setStatus('Error loading profile');
     }
   };
+  
+  // Save profile with auto-save feedback
+  const saveProfileWithFeedback = async (profileToSave: UserProfileForm): Promise<void> => {
+    try {
+      // Convert UserProfileForm to UserProfile using utility function
+      const storageProfile = formToProfile(profileToSave);
 
-  // No auto-save functionality - only update the state
-  const updateProfileState = React.useCallback(
-    (updatedProfile: UserProfileForm) => {
-      // Just update the state, don't save to storage
-      setProfile(updatedProfile);
-    },
+      await browser.storage.local.set({
+        userProfile: JSON.stringify(storageProfile),
+      });
+      
+      // Show auto-save status
+      setAutoSaveStatus('Profile auto-saved');
+      setTimeout(() => setAutoSaveStatus(''), 2000);
+    } catch (error) {
+      console.error('Error auto-saving profile:', error);
+      setAutoSaveStatus('Auto-save failed');
+      setTimeout(() => setAutoSaveStatus(''), 3000);
+    }
+  };
+
+  // Debounced save function
+  const debouncedSaveProfile = React.useCallback(
+    debounce(saveProfileWithFeedback, 1500),
     []
   );
+
+  // Auto-save functionality with debounce - update state and schedule a save
+  const updateProfileStateWithAutoSave = React.useCallback(
+    (updatedProfile: UserProfileForm) => {
+      // Update state immediately
+      setProfile(updatedProfile);
+      
+      // Schedule debounced save
+      debouncedSaveProfile(updatedProfile);
+    },
+    [debouncedSaveProfile]
+  );
+
+  // Handle profile field changes with auto-save
+  const handleProfileChangeWithAutoSave = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ): void => {
+    const { name, value } = e.target;
+    const updatedProfile = {
+      ...profile,
+      [name]: value,
+    };
+    
+    // Update state and schedule auto-save
+    updateProfileStateWithAutoSave(updatedProfile);
+  };
+
+  // Handle input field blur event - save immediately when user leaves a field
+  const handleProfileBlur = async (
+    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>
+  ): Promise<void> => {
+    // Cancel any pending debounced saves
+    debouncedSaveProfile.cancel?.();
+    
+    // Save immediately
+    await saveProfileWithFeedback(profile);
+  };
 
   // Handle profile field changes - only update state, don't save
   const handleProfileChange = (
@@ -241,18 +308,25 @@ const Options: React.FC = () => {
             >
               Job Description
             </Tabs.Trigger>
+            <Tabs.Trigger
+              value="settings"
+              className="px-4 py-3 font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
+            >
+              Settings
+            </Tabs.Trigger>
           </Tabs.List>
 
           <Tabs.Content value="manual" className="bg-white p-6">
             <ProfileTab 
               profile={profile}
-              onProfileChange={handleProfileChange}
-              onProfileUpdate={updateProfileState}
+              onProfileChange={handleProfileChangeWithAutoSave}
+              onProfileUpdate={updateProfileStateWithAutoSave}
               onStatusChange={setStatus}
               jsonInput={jsonInput}
               jsonError={jsonError}
               onJsonInputChange={handleJsonInputChange}
               onImportProfile={importProfileFromJson}
+              onProfileBlur={handleProfileBlur}
             />
           </Tabs.Content>
 
@@ -262,6 +336,12 @@ const Options: React.FC = () => {
 
           <Tabs.Content value="jobDescription" className="bg-white p-6">
             <JobDescriptionTab onStatusChange={setStatus} />
+          </Tabs.Content>
+          
+          <Tabs.Content value="settings" className="bg-white p-6">
+            <div className="space-y-6">
+              <DebugSettings />
+            </div>
           </Tabs.Content>
         </Tabs.Root>
       </div>

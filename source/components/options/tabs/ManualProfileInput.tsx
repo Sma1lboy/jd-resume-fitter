@@ -8,6 +8,31 @@ import { MotionDialog, DialogHeader, DialogTitle, DialogContent, DialogFooter } 
 import JsonProfileImport from '../JsonProfileImport';
 import PdfProfileImport from '../PdfProfileImport';
 
+// Enhanced debounce function that includes a cancel method
+const enhancedDebounce = <F extends (...args: any[]) => any>(
+  func: F,
+  wait: number
+) => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  
+  const debouncedFunc = (...args: Parameters<F>): void => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(() => func(...args), wait);
+  };
+  
+  // Add a cancel method to the function
+  (debouncedFunc as any).cancel = () => {
+    if (timeout) {
+      clearTimeout(timeout);
+      timeout = null;
+    }
+  };
+  
+  return debouncedFunc as ((...args: Parameters<F>) => void) & { cancel: () => void };
+};
+
 // Define the form profile type (strings for form fields)
 export interface UserProfileForm {
   name: string;
@@ -38,6 +63,7 @@ interface ManualProfileInputProps {
   jsonError?: string;
   onJsonInputChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onImportProfile?: () => void;
+  onProfileBlur?: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => Promise<void>;
 }
 
 const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
@@ -50,6 +76,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
   jsonError = '',
   onJsonInputChange = () => {},
   onImportProfile = () => {},
+  onProfileBlur,
 }) => {
   // State for editing individual entries
   const [newSkill, setNewSkill] = React.useState<string>('');
@@ -163,6 +190,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
           name="name"
           value={profile.name}
           onChange={onProfileChange}
+          onBlur={onProfileBlur}
         />
 
         <InputField
@@ -172,6 +200,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
           name="title"
           value={profile.title}
           onChange={onProfileChange}
+          onBlur={onProfileBlur}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -182,6 +211,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
             name="email"
             value={profile.email}
             onChange={onProfileChange}
+            onBlur={onProfileBlur}
           />
 
           <InputField
@@ -191,6 +221,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
             name="phone"
             value={profile.phone}
             onChange={onProfileChange}
+            onBlur={onProfileBlur}
           />
         </div>
 
@@ -201,45 +232,49 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
           name="location"
           value={profile.location}
           onChange={onProfileChange}
+          onBlur={onProfileBlur}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <InputField
-            label="LinkedIn"
+            label="LinkedIn Username"
             type="text"
             id="linkedin"
             name="linkedin"
             value={profile.linkedin}
             onChange={onProfileChange}
+            onBlur={onProfileBlur}
           />
 
           <InputField
-            label="GitHub"
+            label="GitHub Username"
             type="text"
             id="github"
             name="github"
             value={profile.github}
             onChange={onProfileChange}
+            onBlur={onProfileBlur}
+          />
+
+          <InputField
+            label="Personal Website"
+            type="text"
+            id="website"
+            name="website"
+            value={profile.website}
+            onChange={onProfileChange}
+            onBlur={onProfileBlur}
           />
         </div>
-
-        <InputField
-          label="Website"
-          type="text"
-          id="website"
-          name="website"
-          value={profile.website}
-          onChange={onProfileChange}
-        />
 
         <TextareaField
           label="Professional Summary"
           id="summary"
           name="summary"
-          rows={3}
+          rows={4}
           value={profile.summary}
           onChange={onProfileChange}
-          placeholder="Write a brief summary of your professional background and career objectives..."
+          onBlur={onProfileBlur}
         />
       </div>
 
@@ -878,6 +913,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
             rows={3}
             value={profile.certifications}
             onChange={onProfileChange}
+            onBlur={onProfileBlur}
             className="font-mono text-xs"
           />
           <p className="mt-1 text-xs text-gray-500">
@@ -893,6 +929,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
             rows={3}
             value={profile.languages}
             onChange={onProfileChange}
+            onBlur={onProfileBlur}
             className="font-mono text-xs"
           />
           <p className="mt-1 text-xs text-gray-500">
@@ -900,6 +937,73 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Advanced JSON Fields Section */}
+      <div className="border-t border-gray-200 pt-6 mt-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-3">
+          Advanced Fields (JSON Format)
+        </h3>
+        <p className="text-sm text-gray-500 mb-4">
+          The following fields use JSON format for structured data. Only edit these directly if you understand JSON formatting.
+        </p>
+        
+        <div className="space-y-4">
+          <TextareaField
+            label="Experience (JSON format)"
+            id="experience"
+            name="experience"
+            rows={6}
+            value={profile.experience}
+            onChange={onProfileChange}
+            onBlur={onProfileBlur}
+            className="font-mono text-xs"
+          />
+          
+          <TextareaField
+            label="Education (JSON format)"
+            id="education"
+            name="education"
+            rows={6}
+            value={profile.education}
+            onChange={onProfileChange}
+            onBlur={onProfileBlur}
+            className="font-mono text-xs"
+          />
+          
+          <TextareaField
+            label="Certifications (JSON format)"
+            id="certifications"
+            name="certifications"
+            rows={4}
+            value={profile.certifications}
+            onChange={onProfileChange}
+            onBlur={onProfileBlur}
+            className="font-mono text-xs"
+          />
+          
+          <TextareaField
+            label="Languages (JSON format)"
+            id="languages"
+            name="languages"
+            rows={4}
+            value={profile.languages}
+            onChange={onProfileChange}
+            onBlur={onProfileBlur}
+            className="font-mono text-xs"
+          />
+        </div>
+      </div>
+
+      <TextareaField
+        label="Skills"
+        id="skills"
+        name="skills"
+        rows={3}
+        value={profile.skills}
+        onChange={onProfileChange}
+        onBlur={onProfileBlur}
+        placeholder="Comma-separated list of skills (e.g., JavaScript, React, Node.js)"
+      />
     </form>
   );
 };

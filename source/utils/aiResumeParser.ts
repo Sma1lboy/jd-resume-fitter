@@ -2,7 +2,6 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { debugLogger } from './debugLogger';
 import { OpenAISettings, UserProfile } from '@/types';
 
 // Define the schema for the UserProfile using Zod
@@ -73,8 +72,6 @@ export async function parseResumeWithAI(
   resumeText: string,
   settings: OpenAISettings
 ): Promise<UserProfile> {
-  debugLogger.info('Starting AI-based resume parsing using AI SDK...');
-  debugLogger.info(`Resume text length: ${resumeText.length} characters`);
 
   // Validate settings
   if (!settings.apiKey || settings.apiKey.trim() === '') {
@@ -85,7 +82,6 @@ export async function parseResumeWithAI(
   const modelName = settings.model || 'gpt-4';
 
   // Use generateObject from the AI SDK to parse the resume
-  debugLogger.info('Calling AI SDK for resume parsing...');
 
   const provider = createOpenAICompatible({
     name: 'hahaProivder',
@@ -112,6 +108,5 @@ Be thorough and extract as much information as possible from the text.
 `,
   });
 
-  debugLogger.info('Successfully parsed resume with AI SDK');
   return parsedProfile as UserProfile;
 }

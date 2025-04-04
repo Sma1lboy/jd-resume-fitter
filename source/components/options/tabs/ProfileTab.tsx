@@ -2,6 +2,8 @@ import * as React from 'react';
 import ManualProfileInput, { UserProfileForm } from './ManualProfileInput';
 import { formToProfile } from '@utils/profileConverters';
 import { browser } from 'webextension-polyfill-ts';
+import { Button } from '@/components/ui/button';
+import { Upload } from 'lucide-react';
 
 interface ProfileTabProps {
   profile: UserProfileForm;
@@ -12,6 +14,7 @@ interface ProfileTabProps {
   jsonError: string;
   onJsonInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onImportProfile: () => Promise<void>;
+  onProfileBlur?: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => Promise<void>;
 }
 
 const ProfileTab: React.FC<ProfileTabProps> = ({
@@ -23,6 +26,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
   jsonError,
   onJsonInputChange,
   onImportProfile,
+  onProfileBlur,
 }) => {
   // Save profile to storage
   const saveProfile = async (): Promise<void> => {
@@ -85,9 +89,11 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4 text-gray-700">
-        User Profile
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-700">
+          User Profile
+        </h2>
+      </div>
       <ManualProfileInput
         profile={profile}
         onProfileChange={onProfileChange}
@@ -98,6 +104,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
         jsonError={jsonError}
         onJsonInputChange={onJsonInputChange}
         onImportProfile={onImportProfile}
+        onProfileBlur={onProfileBlur}
       />
     </div>
   );

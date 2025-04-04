@@ -1,61 +1,65 @@
 import { browser } from 'webextension-polyfill-ts';
-import { createDebugConsole, addLogToDebugConsole } from '../utils/debugLogger';
+import { createDebugConsole, addLogToDebugConsole, Logger, contentLogger } from '../utils/debugLogger';
 
-console.log('Resume Generator content script loaded');
-console.log('Content script URL:', window.location.href);
-console.log('Browser object available:', !!browser);
+// Check if debug mode is enabled
+const isDebugMode = Logger.isContentScriptDebugMode();
 
-// Create debug console if in debug mode or if debug=true is in URL
-const isDebugMode = window.location.search.includes('debug=true');
+contentLogger.info('Resume Generator content script loaded');
+contentLogger.info('Content script URL:', window.location.href);
+contentLogger.info('Browser object available:', !!browser);
+
+// Create debug console if in debug mode
 if (isDebugMode && document.body) {
   createDebugConsole();
+  contentLogger.debug('Debug console created');
 } else if (isDebugMode) {
-  // If body isn't available yet, wait for it
   window.addEventListener('DOMContentLoaded', () => {
     createDebugConsole();
+    contentLogger.debug('Debug console created (delayed)');
   });
 }
 
-// Track whether the content script is fully initialized
 let isInitialized = false;
 
-// Add a visible indicator that the content script is loaded (for debugging)
-const debugElement = document.createElement('div');
-debugElement.id = 'resume-generator-debug'; // Add ID for later reference
-debugElement.style.position = 'fixed';
-debugElement.style.bottom = '5px';
-debugElement.style.left = '5px';
-debugElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-debugElement.style.color = 'white';
-debugElement.style.padding = '5px';
-debugElement.style.borderRadius = '3px';
-debugElement.style.fontSize = '10px';
-debugElement.style.zIndex = '9999';
-debugElement.textContent = 'Resume Generator loaded';
-debugElement.style.display = 'none'; // Hidden by default, only show in debug mode
+/**
+ * Creates a visual indicator showing the ContentScript is loaded
+ */
+const createDebugIndicator = () => {
+  if (!isDebugMode) return;
+  
+  const debugElement = document.createElement('div');
+  debugElement.id = 'resume-generator-debug';
+  debugElement.style.position = 'fixed';
+  debugElement.style.bottom = '5px';
+  debugElement.style.left = '5px';
+  debugElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  debugElement.style.color = 'white';
+  debugElement.style.padding = '5px';
+  debugElement.style.borderRadius = '3px';
+  debugElement.style.fontSize = '10px';
+  debugElement.style.zIndex = '9999';
+  debugElement.textContent = 'Resume Generator loaded';
+  
+  document.body.appendChild(debugElement);
+  contentLogger.debug('Debug indicator added to page');
+};
 
-// Check if we're in debug mode (add ?debug=true to the URL)
-if (window.location.search.includes('debug=true')) {
-  debugElement.style.display = 'block';
-
+if (isDebugMode) {
   if (document.body) {
-    document.body.appendChild(debugElement);
+    createDebugIndicator();
   } else {
-    // If body isn't available yet, wait for it
-    window.addEventListener('DOMContentLoaded', () => {
-      document.body.appendChild(debugElement);
-    });
+    window.addEventListener('DOMContentLoaded', createDebugIndicator);
   }
 }
 
-// Make sure styles are only added once
 let stylesAdded = false;
 
-// Function to ensure toast styles are added to the document
+/**
+ * Ensures toast notification styles are added to the document
+ */
 function ensureToastStyles() {
   if (stylesAdded) return;
 
-  // Add Sonner styles
   const style = document.createElement('style');
   style.textContent = `
     .toast-success {
@@ -130,11 +134,13 @@ function ensureToastStyles() {
 
   document.head.appendChild(style);
   stylesAdded = true;
+  contentLogger.debug('Toast styles added to page');
 }
 
-// Function to get or create the toast container
+/**
+ * Gets or creates the toast container
+ */
 function getToastContainer(): HTMLElement {
-  // Create a container for the toast if it doesn't exist
   let toastContainer = document.getElementById(
     'resume-generator-toast-container'
   );
@@ -149,23 +155,30 @@ function getToastContainer(): HTMLElement {
     toastContainer.style.zIndex = '9999';
     document.body.appendChild(toastContainer);
 
-    // Ensure styles are added
     ensureToastStyles();
+    contentLogger.debug('Toast container created');
   }
 
   return toastContainer;
 }
 
-// Update debug status if in debug mode
+/**
+ * Updates debug status indicator
+ */
 function updateDebugStatus(status: string) {
+  if (!isDebugMode) return;
+  
   const debugIndicator = document.getElementById('resume-generator-debug');
   if (debugIndicator) {
     const timestamp = new Date().toLocaleTimeString();
     debugIndicator.textContent = `${status} at ${timestamp}`;
+    contentLogger.debug(`Status updated: ${status}`);
   }
 }
 
-// Create a floating notification to show when text is copied
+/**
+ * Shows a notification toast
+ */
 function showNotification(
   message: string,
   type: 'success' | 'error' = 'success'
@@ -173,15 +186,13 @@ function showNotification(
   try {
     const toastContainer = getToastContainer();
 
-    // Create the toast element
     const toast = document.createElement('div');
     toast.className = type === 'error' ? 'toast-error' : 'toast-success';
     toast.textContent = message;
 
-    // Add to container
     toastContainer.appendChild(toast);
+    contentLogger.debug(`Notification shown: ${message} (${type})`);
 
-    // Remove the toast after 3 seconds
     setTimeout(() => {
       toast.style.opacity = '0';
       toast.style.transform = 'translateY(16px)';
@@ -190,77 +201,79 @@ function showNotification(
       setTimeout(() => {
         if (toastContainer.contains(toast)) {
           toastContainer.removeChild(toast);
+          contentLogger.debug('Notification removed');
         }
 
-        // Remove container if empty
         if (toastContainer.childNodes.length === 0) {
           try {
             if (document.body.contains(toastContainer)) {
               document.body.removeChild(toastContainer);
+              contentLogger.debug('Toast container removed');
             }
           } catch (removeError) {
-            console.warn('Error removing toast container:', removeError);
+            contentLogger.warn('Error removing toast container:', removeError);
           }
         }
       }, 300);
     }, 3000);
   } catch (error) {
-    console.error('Error showing notification:', error);
+    contentLogger.error('Error showing notification:', error);
   }
 }
 
-// Function to show a loading toast with spinner
+/**
+ * Shows a loading toast with spinner
+ */
 function showLoadingToast(id: string, message: string): void {
   try {
     const toastContainer = getToastContainer();
 
-    // Check if a toast with this ID already exists
     let toast = document.getElementById(id);
 
     if (!toast) {
-      // Create the toast element
       toast = document.createElement('div');
       toast.id = id;
       toast.className = 'toast-loading';
 
-      // Create spinner
       const spinner = document.createElement('div');
       spinner.className = 'spinner';
       toast.appendChild(spinner);
 
-      // Add message
       const messageSpan = document.createElement('span');
       messageSpan.textContent = message;
       toast.appendChild(messageSpan);
 
-      // Add to container
       toastContainer.appendChild(toast);
+      contentLogger.debug(`Loading toast shown: ${id} - ${message}`);
     }
 
     updateDebugStatus(`Loading toast shown: ${message}`);
   } catch (error) {
-    console.error('Error showing loading toast:', error);
+    contentLogger.error('Error showing loading toast:', error);
   }
 }
 
-// Function to update a loading toast with a new message
+/**
+ * Updates the message of a loading toast
+ */
 function updateLoadingToast(id: string, message: string): void {
   try {
     const toast = document.getElementById(id);
     if (toast) {
-      // Find the message span (second child)
       const messageSpan = toast.querySelector('span');
       if (messageSpan) {
         messageSpan.textContent = message;
-        updateDebugStatus(`Toast updated: ${message}`);
+        contentLogger.debug(`Toast updated: ${id} - ${message}`);
       }
     }
   } catch (error) {
-    console.error('Error updating loading toast:', error);
+    contentLogger.error('Error updating loading toast:', error);
   }
 }
 
-// Function to hide a specific toast by ID
+/**
+ * Hides a loading toast by ID
+ */
 function hideLoadingToast(id: string): void {
   try {
     const toast = document.getElementById(id);
@@ -276,16 +289,17 @@ function hideLoadingToast(id: string): void {
       setTimeout(() => {
         if (toastContainer.contains(toast)) {
           toastContainer.removeChild(toast);
+          contentLogger.debug(`Toast hidden and removed: ${id}`);
         }
 
-        // Remove container if empty
         if (toastContainer.childNodes.length === 0) {
           try {
             if (document.body.contains(toastContainer)) {
               document.body.removeChild(toastContainer);
+              contentLogger.debug('Toast container removed after hiding toast');
             }
           } catch (removeError) {
-            console.warn('Error removing toast container:', removeError);
+            contentLogger.warn('Error removing toast container:', removeError);
           }
         }
       }, 300);
@@ -293,103 +307,94 @@ function hideLoadingToast(id: string): void {
       updateDebugStatus(`Toast hidden: ${id}`);
     }
   } catch (error) {
-    console.error('Error hiding loading toast:', error);
+    contentLogger.error('Error hiding loading toast:', error);
   }
 }
 
-// Listen for messages from the background script with improved error handling
+/**
+ * Message listener for background script communication
+ */
 browser.runtime.onMessage.addListener((message: any) => {
-  // Handle debug logs
   if (message.action === 'debugLog') {
     console.log(`[DEBUG LOG] ${message.level}: ${message.message}`);
 
-    // Add to debug console if it exists
     if (document.getElementById('resume-generator-debug-console')) {
       addLogToDebugConsole(message.message, message.level);
     }
 
     return Promise.resolve({ success: true, action: 'debugLog' });
   }
-  console.log('Message received in content script:', message);
+  
+  contentLogger.debug('Message received:', message);
   updateDebugStatus(`Message received: ${message.action}`);
 
   try {
-    // Handle showLoadingToast action
     if (
       message.action === 'showLoadingToast' &&
       message.id &&
       message.message
     ) {
-      console.log('Showing loading toast:', message.id, message.message);
       showLoadingToast(message.id, message.message);
       return Promise.resolve({ success: true, action: 'showLoadingToast' });
     }
 
-    // Handle hideLoadingToast action
     if (message.action === 'hideLoadingToast' && message.id) {
-      console.log('Hiding loading toast:', message.id);
       hideLoadingToast(message.id);
       return Promise.resolve({ success: true, action: 'hideLoadingToast' });
     }
 
-    // Handle updateLoadingToast action
     if (
       message.action === 'updateLoadingToast' &&
       message.id &&
       message.message
     ) {
-      console.log('Updating loading toast:', message.id, message.message);
       updateLoadingToast(message.id, message.message);
       return Promise.resolve({ success: true, action: 'updateLoadingToast' });
     }
 
-    console.warn('Unknown action received:', message.action);
+    contentLogger.warn('Unknown action received:', message.action);
     return Promise.resolve({
       success: false,
       error: 'Unknown action',
       receivedAction: message.action,
     });
   } catch (error) {
-    console.error('Error handling message in content script:', error);
+    contentLogger.error('Error handling message in content script:', error);
     return Promise.resolve({ success: false, error: String(error) });
   }
 });
 
-// Initialization function to ensure content script is ready
+/**
+ * Initializes the content script
+ */
 function initialize() {
   if (isInitialized) return;
 
-  // Mark as initialized
   isInitialized = true;
-  console.log('Resume Generator content script initialized');
+  contentLogger.info('Resume Generator content script initialized');
 
-  // Notify background script that content script is ready (optional)
   try {
     browser.runtime
       .sendMessage({ action: 'contentScriptReady' })
       .catch(error =>
-        console.warn('Could not notify background script:', error)
+        contentLogger.warn('Could not notify background script:', error)
       );
   } catch (error) {
-    console.warn('Error notifying background script:', error);
+    contentLogger.warn('Error notifying background script:', error);
   }
 }
 
-// Initialize if document is already loaded
 if (
   document.readyState === 'complete' ||
   document.readyState === 'interactive'
 ) {
   initialize();
 } else {
-  // Otherwise wait for DOMContentLoaded
   window.addEventListener('DOMContentLoaded', initialize);
 }
 
-// Also initialize after a short delay as a fallback
 setTimeout(initialize, 1000);
 
-// Log that we've set up the message listener
-console.log('Resume Generator message listener initialized');
+contentLogger.info('Resume Generator message listener initialized');
 
 export {};
