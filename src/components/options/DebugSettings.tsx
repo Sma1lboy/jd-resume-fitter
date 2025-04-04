@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getSettings, saveSettings } from '../../utils/settings';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
+import { getAppConfig, setAppConfig } from '@/utils/config';
 
 const DebugSettings: React.FC = () => {
   const [debugMode, setDebugMode] = useState(false);
@@ -13,7 +13,7 @@ const DebugSettings: React.FC = () => {
 
   const loadSettings = async () => {
     try {
-      const settings = await getSettings();
+      const settings = await getAppConfig();
       setDebugMode(settings.debugMode);
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -24,7 +24,7 @@ const DebugSettings: React.FC = () => {
     setDebugMode(checked);
     
     try {
-      await saveSettings({ debugMode: checked });
+      await setAppConfig({ debugMode: checked });
       setSaveStatus('Settings saved');
       
       // Clear status message after 3 seconds

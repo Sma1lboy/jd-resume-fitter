@@ -1,5 +1,5 @@
 import { browser } from 'webextension-polyfill-ts';
-import { getSettings } from './settings';
+import { getAppConfig } from './config';
 
 /**
  * Log levels
@@ -27,7 +27,7 @@ initDebugModeCache();
 // Initialize cache
 async function initDebugModeCache() {
   try {
-    const settings = await getSettings();
+    const settings = await getAppConfig();
     cachedDebugMode = settings.debugMode;
     lastCheckTime = Date.now();
     console.log(`[Logger] Debug mode initialized: ${cachedDebugMode}`);
@@ -268,7 +268,7 @@ export class Logger {
    * Asynchronous version - Use only in special cases
    */
   async debugAsync(...args: any[]): Promise<void> {
-    const settings = await getSettings();
+    const settings = await getAppConfig();
     if (settings.debugMode) {
       const message = this.formatMessage(args);
       console.debug(`[${this.namespace}]`, ...args);
@@ -280,7 +280,7 @@ export class Logger {
    * Asynchronous version - Use only in special cases
    */
   async infoAsync(...args: any[]): Promise<void> {
-    const settings = await getSettings();
+    const settings = await getAppConfig();
     if (settings.debugMode) {
       const message = this.formatMessage(args);
       console.info(`[${this.namespace}]`, ...args);

@@ -1,6 +1,6 @@
 import { browser } from 'webextension-polyfill-ts';
-import { saveSettings } from './utils/settings';
 import { logger } from './utils/logger';
+import { setAppConfig } from './utils/config';
 
 // Handle installation and updates
 browser.runtime.onInstalled.addListener(async (details) => {
@@ -8,9 +8,8 @@ browser.runtime.onInstalled.addListener(async (details) => {
     logger.info('Extension installed');
     
     // Initialize default settings
-    await saveSettings({
+    await setAppConfig({
       debugMode: false,
-      openaiModel: 'gpt-3.5-turbo'
     });
   } else if (details.reason === 'update') {
     logger.info(`Extension updated from ${details.previousVersion} to ${browser.runtime.getManifest().version}`);
