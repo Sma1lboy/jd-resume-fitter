@@ -21,13 +21,13 @@
     "noUnusedParameters": false,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["source/*"],
-      "@components/*": ["source/components/*"],
-      "@styles/*": ["source/styles/*"],
-      "@utils/*": ["source/utils/*"],
-      "@hooks/*": ["source/hooks/*"],
-      "@templates/*": ["source/templates/*"]
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@styles/*": ["src/styles/*"],
+      "@utils/*": ["src/utils/*"],
+      "@hooks/*": ["src/hooks/*"],
+      "@templates/*": ["src/templates/*"]
     }
   },
-  "include": ["source", "webpack.config.mjs"]
+  "include": ["src", "webpack.config.mjs"]
 }

@@ -12,7 +12,7 @@ const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 
 const viewsPath = path.join(__dirname, 'views');
-const sourcePath = path.join(__dirname, 'source');
+const sourcePath = path.join(__dirname, 'src');
 const destPath = path.join(__dirname, 'extension');
 const nodeEnv = process.env.NODE_ENV || 'development';
 const targetBrowser = process.env.TARGET_BROWSER;
@@ -77,13 +77,13 @@ module.exports = {
         path.join(__dirname, 'node_modules', 'webextension-polyfill-ts')
       ),
       'react/jsx-runtime': require.resolve('react/jsx-runtime'),
-      '@': path.resolve(__dirname, 'source'),
-      '@components': path.resolve(__dirname, 'source/components'),
-      '@styles': path.resolve(__dirname, 'source/styles'),
-      '@utils': path.resolve(__dirname, 'source/utils'),
-      '@hooks': path.resolve(__dirname, 'source/hooks'),
-      '@templates': path.resolve(__dirname, 'source/templates'),
-      source: path.resolve(__dirname, 'source'),
+      '@': path.resolve(__dirname, 'src'),
+      '@components': path.resolve(__dirname, 'src/components'),
+      '@styles': path.resolve(__dirname, 'src/styles'),
+      '@utils': path.resolve(__dirname, 'src/utils'),
+      '@hooks': path.resolve(__dirname, 'src/hooks'),
+      '@templates': path.resolve(__dirname, 'src/templates'),
+      src: path.resolve(__dirname, 'src'),
     },
     fallback: {
       path: false,
@@ -173,7 +173,7 @@ module.exports = {
     new MiniCssExtractPlugin({ filename: 'css/[name].css' }),
     // copy static assets
     new CopyWebpackPlugin({
-      patterns: [{ from: 'source/assets', to: 'assets' }],
+      patterns: [{ from: 'src/assets', to: 'assets' }],
     }),
     // plugin to enable browser reloading in development mode
     extensionReloaderPlugin,
