@@ -1,8 +1,14 @@
 import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import '../styles/global.css';
-import Popup from './Popup';
+import Popup from '@/components/popup';
 
-const container = document.getElementById('popup-root');
-const root = createRoot(container); // createRoot(container!) if you use TypeScript
-root.render(<Popup />);
+try {
+  const container = document.getElementById('popup-root');
+  if (container) {
+    const root = createRoot(container);
+    root.render(<Popup />);
+  }
+} catch (error) {
+  console.error('Error rendering Popup:', error);
+}

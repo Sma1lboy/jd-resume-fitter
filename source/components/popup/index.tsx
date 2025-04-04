@@ -1,13 +1,13 @@
 import * as React from 'react';
 import { browser, Tabs as BrowserTabs } from 'webextension-polyfill-ts';
 import * as Tabs from '@radix-ui/react-tabs';
-import Logo from '../components/Logo';
+import Logo from '@/components/Logo';
 import {
   parseOpenAISettings,
   stringifyOpenAISettings,
   defaultOpenAISettings,
-} from '../utils/settingsConverters';
-import { Input } from '../components/ui/input';
+} from '@/utils/settingsConverters';
+import { Input } from '@/components/ui/input';
 import { InputField } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

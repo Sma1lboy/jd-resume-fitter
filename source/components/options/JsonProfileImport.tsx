@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { TextareaField } from '@components/ui/form-field';
-import { UserProfileForm } from './ManualProfileInput';
+import { UserProfileForm } from './tabs/ManualProfileInput';
 
 interface JsonProfileImportProps {
   jsonInput: string;

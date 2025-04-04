@@ -1,11 +1,12 @@
+import { UserProfileForm } from '@/components/options/tabs/ManualProfileInput';
 import { UserProfile } from '@/types';
-import { UserProfileForm } from '../Options/ManualProfileInput';
 
 /**
  * Converts a UserProfile object to a UserProfileForm object
  * (converts arrays and objects to strings for form fields)
  */
 export function profileToForm(userProfile: UserProfile): UserProfileForm {
+  
   // Create a base object with all required fields
   return {
     name: userProfile.name || '',

@@ -2,12 +2,10 @@ import * as React from 'react';
 import { browser } from 'webextension-polyfill-ts';
 import * as Tabs from '@radix-ui/react-tabs';
 import { profileToForm, formToProfile } from '@utils/profileConverters';
-import ManualProfileInput, { UserProfileForm } from './ManualProfileInput';
-import JsonProfileImport from './JsonProfileImport';
-import ResumeTemplateEditor from './ResumeTemplateEditor';
-import JobDescriptionInput from './JobDescriptionInput';
+import { UserProfileForm } from './tabs/ManualProfileInput';
 import Logo from '@/components/Logo';
 import { UserProfile } from '@/types';
+import { ProfileTab, TemplateTab, JobDescriptionTab } from './tabs';
 
 // Improved debounce function that allows input modifications during pending operations
 const debounce = <F extends (...args: any[]) => Promise<any>>(
@@ -90,65 +88,6 @@ const Options: React.FC = () => {
     } catch (error) {
       console.error('Error loading profile:', error);
       setStatus('Error loading profile');
-    }
-  };
-
-  // Save profile to storage
-  const saveProfile = async (): Promise<void> => {
-    try {
-      // Convert UserProfileForm to UserProfile using utility function
-      const storageProfile = formToProfile(profile);
-
-      await browser.storage.local.set({
-        userProfile: JSON.stringify(storageProfile),
-      });
-
-      setStatus('Profile saved successfully!');
-      setTimeout(() => setStatus(''), 3000);
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      setStatus(
-        `Error saving profile: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
-  };
-
-  // Reset profile to empty state
-  const resetProfile = async (): Promise<void> => {
-    try {
-      const emptyProfile: UserProfileForm = {
-        name: '',
-        title: '',
-        email: '',
-        phone: '',
-        location: '',
-        linkedin: '',
-        github: '',
-        website: '',
-        summary: '',
-        skills: '',
-        experience: '',
-        education: '',
-        certifications: '',
-        languages: '',
-      };
-      
-      // Update state with empty profile
-      setProfile(emptyProfile);
-      
-      // Save empty profile to storage
-      const storageProfile = formToProfile(emptyProfile);
-      await browser.storage.local.set({
-        userProfile: JSON.stringify(storageProfile),
-      });
-      
-      setStatus('Profile reset successfully!');
-      setTimeout(() => setStatus(''), 3000);
-    } catch (error) {
-      console.error('Error resetting profile:', error);
-      setStatus(
-        `Error resetting profile: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
     }
   };
 
@@ -305,18 +244,11 @@ const Options: React.FC = () => {
           </Tabs.List>
 
           <Tabs.Content value="manual" className="bg-white p-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-700">
-              User Profile
-            </h2>
-            <ManualProfileInput
+            <ProfileTab 
               profile={profile}
               onProfileChange={handleProfileChange}
-              onProfileUpdate={updatedProfile => {
-                // Only update state, don't save to storage
-                setProfile(updatedProfile);
-              }}
-              onSave={saveProfile}
-              onReset={resetProfile}
+              onProfileUpdate={updateProfileState}
+              onStatusChange={setStatus}
               jsonInput={jsonInput}
               jsonError={jsonError}
               onJsonInputChange={handleJsonInputChange}
@@ -325,11 +257,11 @@ const Options: React.FC = () => {
           </Tabs.Content>
 
           <Tabs.Content value="template" className="bg-white p-6">
-            <ResumeTemplateEditor onStatusChange={setStatus} />
+            <TemplateTab onStatusChange={setStatus} />
           </Tabs.Content>
 
           <Tabs.Content value="jobDescription" className="bg-white p-6">
-            <JobDescriptionInput onStatusChange={setStatus} />
+            <JobDescriptionTab onStatusChange={setStatus} />
           </Tabs.Content>
         </Tabs.Root>
       </div>

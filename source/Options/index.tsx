@@ -2,11 +2,11 @@ import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 
 import '../styles/global.css';
-import Options from './Options';
+import Options from '@/components/options';
 
 try {
   const container = document.getElementById('options-root');
-  const root = createRoot(container); // createRoot(container!) if you use TypeScript
+  const root = createRoot(container); 
   root.render(<Options />);
 } catch (error) {
   console.error('Error rendering Options:', error);

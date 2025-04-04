@@ -11,11 +11,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/components/ui/form-field';
 
-interface JobDescriptionInputProps {
+interface JobDescriptionTabProps {
   onStatusChange: (status: string) => void;
 }
 
-const JobDescriptionInput: React.FC<JobDescriptionInputProps> = ({
+const JobDescriptionTab: React.FC<JobDescriptionTabProps> = ({
   onStatusChange,
 }) => {
   const [jobDescription, setJobDescription] = React.useState<string>('');
@@ -274,4 +274,4 @@ const JobDescriptionInput: React.FC<JobDescriptionInputProps> = ({
   );
 };
 
-export default JobDescriptionInput;
+export default JobDescriptionTab;

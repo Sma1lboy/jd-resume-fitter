@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Upload, File, AlertCircle } from 'lucide-react';
 import { UserProfile } from '@/types';
-import { UserProfileForm } from './ManualProfileInput';
+import { UserProfileForm } from './tabs/ManualProfileInput';
 
 interface PdfProfileImportProps {
   onClose: () => void;

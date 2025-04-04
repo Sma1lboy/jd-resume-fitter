@@ -5,8 +5,8 @@ import { Textarea } from '@components/ui/textarea';
 import { InputField, TextareaField } from '@components/ui/form-field';
 import { X, Upload, FileText } from 'lucide-react';
 import { MotionDialog, DialogHeader, DialogTitle, DialogContent, DialogFooter } from '@components/ui/dialog';
-import JsonProfileImport from './JsonProfileImport';
-import PdfProfileImport from './PdfProfileImport';
+import JsonProfileImport from '../JsonProfileImport';
+import PdfProfileImport from '../PdfProfileImport';
 
 // Define the form profile type (strings for form fields)
 export interface UserProfileForm {
@@ -332,7 +332,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                 description: '',
               });
               
-              // 添加一个空白条目
+              // Add an empty item
               try {
                 const experiences = JSON.parse(profile.experience || '[]');
                 experiences.push({
@@ -348,12 +348,12 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                 };
                 
                 onProfileUpdate(updatedProfile);
-                // 设置编辑索引为最后一个项目
+                // Set editing index to the last item
                 setEditingExperienceIndex(experiences.length - 1);
               } catch (error) {
                 console.error("Error adding new experience:", error);
                 alert("Error adding new experience. Please check the console for details.");
-                // 确保在错误时重置编辑状态
+                // Reset editing state on error
                 setEditingExperienceIndex(null);
               }
             }}
@@ -384,7 +384,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                   className="mb-4 p-4 border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-shadow"
                 >
                   {editingExperienceIndex === index ? (
-                    // 编辑表单
+                    // Edit form
                     <div>
                       <h4 className="font-medium text-gray-700 mb-3">Edit Experience</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
@@ -455,6 +455,21 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                         <button
                           type="button"
                           onClick={() => {
+                            // If it's a newly created empty item, remove it
+                            try {
+                              if (newExperienceItem.company === '' && newExperienceItem.title === '') {
+                                const experiences = JSON.parse(profile.experience || '[]');
+                                experiences.splice(index, 1);
+                                const updatedProfile = {
+                                  ...profile,
+                                  experience: JSON.stringify(experiences, null, 2),
+                                };
+                                onProfileUpdate(updatedProfile);
+                              }
+                            } catch (error) {
+                              console.error("Error removing empty experience item:", error);
+                            }
+                            
                             setEditingExperienceIndex(null);
                             setNewExperienceItem({
                               company: '',
@@ -506,7 +521,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                               } catch (error) {
                                 console.error("Error updating experience:", error);
                                 alert("Error updating experience. Please check the console for details.");
-                                // 确保在错误时重置编辑状态
+                                // Reset editing state on error
                                 setEditingExperienceIndex(null);
                               }
                             } else {
@@ -520,7 +535,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                       </div>
                     </div>
                   ) : (
-                    // 显示模式
+                    // Display mode
                     <>
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -564,7 +579,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                                   experience: JSON.stringify(expArray, null, 2),
                                 };
                                 onProfileUpdate(updatedProfile);
-                                // 如果正在编辑被删除的条目，取消编辑
+                                // If editing the removed item, cancel editing
                                 if (editingExperienceIndex === index) {
                                   setEditingExperienceIndex(null);
                                 }
@@ -619,7 +634,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                 date: '',
               });
               
-              // 添加一个空白条目
+              // Add an empty item
               try {
                 const educations = JSON.parse(profile.education || '[]');
                 educations.push({
@@ -634,12 +649,12 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                 };
                 
                 onProfileUpdate(updatedProfile);
-                // 设置编辑索引为最后一个项目
+                // Set editing index to the last item
                 setEditingEducationIndex(educations.length - 1);
               } catch (error) {
                 console.error("Error adding new education:", error);
                 alert("Error adding new education. Please check the console for details.");
-                // 确保在错误时重置编辑状态
+                // Reset editing state on error
                 setEditingEducationIndex(null);
               }
             }}
@@ -670,7 +685,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                   className="mb-4 p-3 border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-shadow"
                 >
                   {editingEducationIndex === index ? (
-                    // 编辑表单
+                    // Edit form
                     <div>
                       <h4 className="font-medium text-gray-700 mb-3">Edit Education</h4>
                       <InputField
@@ -716,6 +731,21 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                         <button
                           type="button"
                           onClick={() => {
+                            // If it's a newly created empty item, remove it
+                            try {
+                              if (newEducationItem.institution === '' && newEducationItem.degree === '') {
+                                const educations = JSON.parse(profile.education || '[]');
+                                educations.splice(index, 1);
+                                const updatedProfile = {
+                                  ...profile,
+                                  education: JSON.stringify(educations, null, 2),
+                                };
+                                onProfileUpdate(updatedProfile);
+                              }
+                            } catch (error) {
+                              console.error("Error removing empty education item:", error);
+                            }
+                            
                             setEditingEducationIndex(null);
                             setNewEducationItem({
                               institution: '',
@@ -757,7 +787,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                               } catch (error) {
                                 console.error("Error updating education:", error);
                                 alert("Error updating education. Please check the console for details.");
-                                // 确保在错误时重置编辑状态
+                                // Reset editing state on error
                                 setEditingEducationIndex(null);
                               }
                             } else {
@@ -771,7 +801,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                       </div>
                     </div>
                   ) : (
-                    // 显示模式
+                    // Display mode
                     <>
                       <div className="flex justify-between mb-2">
                         <div>
@@ -811,7 +841,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                                   education: JSON.stringify(eduArray, null, 2),
                                 };
                                 onProfileUpdate(updatedProfile);
-                                // 如果正在编辑被删除的条目，取消编辑
+                                // If editing the removed item, cancel editing
                                 if (editingEducationIndex === index) {
                                   setEditingEducationIndex(null);
                                 }
