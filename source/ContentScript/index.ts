@@ -1,21 +1,21 @@
 import { browser } from 'webextension-polyfill-ts';
-import { createDebugConsole, addLogToDebugConsole, Logger, contentLogger } from '../utils/debugLogger';
+import { createDebugConsole, addLogToDebugConsole, Logger, logger } from '../utils/logger';
 
 // Check if debug mode is enabled
 const isDebugMode = Logger.isContentScriptDebugMode();
 
-contentLogger.info('Resume Generator content script loaded');
-contentLogger.info('Content script URL:', window.location.href);
-contentLogger.info('Browser object available:', !!browser);
+logger.info('Resume Generator content script loaded');
+logger.info('Content script URL:', window.location.href);
+logger.info('Browser object available:', !!browser);
 
 // Create debug console if in debug mode
 if (isDebugMode && document.body) {
   createDebugConsole();
-  contentLogger.debug('Debug console created');
+  logger.debug('Debug console created');
 } else if (isDebugMode) {
   window.addEventListener('DOMContentLoaded', () => {
     createDebugConsole();
-    contentLogger.debug('Debug console created (delayed)');
+    logger.debug('Debug console created (delayed)');
   });
 }
 
@@ -41,7 +41,7 @@ const createDebugIndicator = () => {
   debugElement.textContent = 'Resume Generator loaded';
   
   document.body.appendChild(debugElement);
-  contentLogger.debug('Debug indicator added to page');
+  logger.debug('Debug indicator added to page');
 };
 
 if (isDebugMode) {
@@ -134,7 +134,7 @@ function ensureToastStyles() {
 
   document.head.appendChild(style);
   stylesAdded = true;
-  contentLogger.debug('Toast styles added to page');
+  logger.debug('Toast styles added to page');
 }
 
 /**
@@ -156,7 +156,7 @@ function getToastContainer(): HTMLElement {
     document.body.appendChild(toastContainer);
 
     ensureToastStyles();
-    contentLogger.debug('Toast container created');
+    logger.debug('Toast container created');
   }
 
   return toastContainer;
@@ -172,7 +172,7 @@ function updateDebugStatus(status: string) {
   if (debugIndicator) {
     const timestamp = new Date().toLocaleTimeString();
     debugIndicator.textContent = `${status} at ${timestamp}`;
-    contentLogger.debug(`Status updated: ${status}`);
+    logger.debug(`Status updated: ${status}`);
   }
 }
 
@@ -191,7 +191,7 @@ function showNotification(
     toast.textContent = message;
 
     toastContainer.appendChild(toast);
-    contentLogger.debug(`Notification shown: ${message} (${type})`);
+    logger.debug(`Notification shown: ${message} (${type})`);
 
     setTimeout(() => {
       toast.style.opacity = '0';
@@ -201,23 +201,23 @@ function showNotification(
       setTimeout(() => {
         if (toastContainer.contains(toast)) {
           toastContainer.removeChild(toast);
-          contentLogger.debug('Notification removed');
+          logger.debug('Notification removed');
         }
 
         if (toastContainer.childNodes.length === 0) {
           try {
             if (document.body.contains(toastContainer)) {
               document.body.removeChild(toastContainer);
-              contentLogger.debug('Toast container removed');
+              logger.debug('Toast container removed');
             }
           } catch (removeError) {
-            contentLogger.warn('Error removing toast container:', removeError);
+            logger.warn('Error removing toast container:', removeError);
           }
         }
       }, 300);
     }, 3000);
   } catch (error) {
-    contentLogger.error('Error showing notification:', error);
+    logger.error('Error showing notification:', error);
   }
 }
 
@@ -244,12 +244,12 @@ function showLoadingToast(id: string, message: string): void {
       toast.appendChild(messageSpan);
 
       toastContainer.appendChild(toast);
-      contentLogger.debug(`Loading toast shown: ${id} - ${message}`);
+      logger.debug(`Loading toast shown: ${id} - ${message}`);
     }
 
     updateDebugStatus(`Loading toast shown: ${message}`);
   } catch (error) {
-    contentLogger.error('Error showing loading toast:', error);
+    logger.error('Error showing loading toast:', error);
   }
 }
 
@@ -263,11 +263,11 @@ function updateLoadingToast(id: string, message: string): void {
       const messageSpan = toast.querySelector('span');
       if (messageSpan) {
         messageSpan.textContent = message;
-        contentLogger.debug(`Toast updated: ${id} - ${message}`);
+        logger.debug(`Toast updated: ${id} - ${message}`);
       }
     }
   } catch (error) {
-    contentLogger.error('Error updating loading toast:', error);
+    logger.error('Error updating loading toast:', error);
   }
 }
 
@@ -289,17 +289,17 @@ function hideLoadingToast(id: string): void {
       setTimeout(() => {
         if (toastContainer.contains(toast)) {
           toastContainer.removeChild(toast);
-          contentLogger.debug(`Toast hidden and removed: ${id}`);
+          logger.debug(`Toast hidden and removed: ${id}`);
         }
 
         if (toastContainer.childNodes.length === 0) {
           try {
             if (document.body.contains(toastContainer)) {
               document.body.removeChild(toastContainer);
-              contentLogger.debug('Toast container removed after hiding toast');
+              logger.debug('Toast container removed after hiding toast');
             }
           } catch (removeError) {
-            contentLogger.warn('Error removing toast container:', removeError);
+            logger.warn('Error removing toast container:', removeError);
           }
         }
       }, 300);
@@ -307,7 +307,7 @@ function hideLoadingToast(id: string): void {
       updateDebugStatus(`Toast hidden: ${id}`);
     }
   } catch (error) {
-    contentLogger.error('Error hiding loading toast:', error);
+    logger.error('Error hiding loading toast:', error);
   }
 }
 
@@ -325,7 +325,7 @@ browser.runtime.onMessage.addListener((message: any) => {
     return Promise.resolve({ success: true, action: 'debugLog' });
   }
   
-  contentLogger.debug('Message received:', message);
+  logger.debug('Message received:', message);
   updateDebugStatus(`Message received: ${message.action}`);
 
   try {
@@ -352,14 +352,14 @@ browser.runtime.onMessage.addListener((message: any) => {
       return Promise.resolve({ success: true, action: 'updateLoadingToast' });
     }
 
-    contentLogger.warn('Unknown action received:', message.action);
+    logger.warn('Unknown action received:', message.action);
     return Promise.resolve({
       success: false,
       error: 'Unknown action',
       receivedAction: message.action,
     });
   } catch (error) {
-    contentLogger.error('Error handling message in content script:', error);
+    logger.error('Error handling message in content script:', error);
     return Promise.resolve({ success: false, error: String(error) });
   }
 });
@@ -371,16 +371,16 @@ function initialize() {
   if (isInitialized) return;
 
   isInitialized = true;
-  contentLogger.info('Resume Generator content script initialized');
+  logger.info('Resume Generator content script initialized');
 
   try {
     browser.runtime
       .sendMessage({ action: 'contentScriptReady' })
       .catch(error =>
-        contentLogger.warn('Could not notify background script:', error)
+        logger.warn('Could not notify background script:', error)
       );
   } catch (error) {
-    contentLogger.warn('Error notifying background script:', error);
+    logger.warn('Error notifying background script:', error);
   }
 }
 
@@ -395,6 +395,6 @@ if (
 
 setTimeout(initialize, 1000);
 
-contentLogger.info('Resume Generator message listener initialized');
+logger.info('Resume Generator message listener initialized');
 
 export {};

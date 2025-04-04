@@ -321,5 +321,5 @@ export class Logger {
 }
 
 // Create commonly used logger instances
-export const contentLogger = new Logger('App');
+export const logger = new Logger('App');
 export const aiLogger = new Logger('AI');

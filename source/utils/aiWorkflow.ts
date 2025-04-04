@@ -2,7 +2,7 @@ import { browser } from 'webextension-polyfill-ts';
 import OpenAI from 'openai';
 import { generateText } from 'ai';
 
-import {contentLogger } from './debugLogger';
+import {logger } from './logger';
 import { OpenAISettings, UserProfile } from '@/types';
 
 // Singleton OpenAI client instance
@@ -22,7 +22,7 @@ export async function loadUserProfile(
   timeoutMs = 5000
 ): Promise<UserProfile | null> {
   try {
-    contentLogger.info('Loading user profile from storage...');
+    logger.info('Loading user profile from storage...');
 
     const profilePromise = browser.storage.local.get('userProfile');
     const timeoutPromise = new Promise((_, reject) => {
@@ -35,13 +35,13 @@ export async function loadUserProfile(
     const data = (await Promise.race([profilePromise, timeoutPromise])) as {
       userProfile?: string;
     };
-    contentLogger.info(
+    logger.info(
       'User profile data received: ' + (data ? 'Data found' : 'No data found')
     );
 
     if (data?.userProfile) {
       const profile = JSON.parse(data.userProfile);
-      contentLogger.info(
+      logger.info(
         'User profile parsed successfully: ' +
           JSON.stringify({
             name: profile.name,
@@ -60,10 +60,10 @@ export async function loadUserProfile(
       return profile;
     }
 
-    contentLogger.info('No user profile found in storage');
+    logger.info('No user profile found in storage');
     return null;
   } catch (error) {
-    contentLogger.error('Error loading user profile: ' + String(error));
+    logger.error('Error loading user profile: ' + String(error));
     return null;
   }
 }
@@ -87,7 +87,7 @@ export async function saveUserProfile(
     await Promise.race([savePromise, timeoutPromise]);
     return true;
   } catch (error) {
-    contentLogger.error('Error saving user profile: ' + String(error));
+    logger.error('Error saving user profile: ' + String(error));
     return false;
   }
 }
@@ -97,7 +97,7 @@ export async function loadResumeTemplate(
   timeoutMs = 5000
 ): Promise<string | null> {
   try {
-    contentLogger.info('Loading resume template from storage...');
+    logger.info('Loading resume template from storage...');
 
     const templatePromise = browser.storage.local.get('resumeTemplate');
     const timeoutPromise = new Promise((_, reject) => {
@@ -110,25 +110,25 @@ export async function loadResumeTemplate(
     const data = (await Promise.race([templatePromise, timeoutPromise])) as {
       resumeTemplate?: string;
     };
-    contentLogger.info(
+    logger.info(
       'Resume template data received: ' +
         (data ? 'Data found' : 'No data found')
     );
 
     if (data?.resumeTemplate) {
-      contentLogger.info(
+      logger.info(
         'Resume template found, length: ' + data.resumeTemplate.length
       );
-      contentLogger.info(
+      logger.info(
         'Template preview: ' + data.resumeTemplate.substring(0, 100) + '...'
       );
       return data.resumeTemplate;
     }
 
-    contentLogger.info('No resume template found in storage');
+    logger.info('No resume template found in storage');
     return null;
   } catch (error) {
-    contentLogger.error('Error loading resume template: ' + String(error));
+    logger.error('Error loading resume template: ' + String(error));
     return null;
   }
 }
@@ -150,7 +150,7 @@ export async function saveResumeTemplate(
     await Promise.race([savePromise, timeoutPromise]);
     return true;
   } catch (error) {
-    contentLogger.error('Error saving resume template: ' + String(error));
+    logger.error('Error saving resume template: ' + String(error));
     return false;
   }
 }
@@ -160,7 +160,7 @@ export async function loadOpenAISettings(
   timeoutMs = 5000
 ): Promise<OpenAISettings> {
   try {
-    contentLogger.info('Loading OpenAI settings from storage...');
+    logger.info('Loading OpenAI settings from storage...');
 
     const settingsPromise = browser.storage.local.get('openAISettings');
     const timeoutPromise = new Promise((_, reject) => {
@@ -173,13 +173,13 @@ export async function loadOpenAISettings(
     const data = (await Promise.race([settingsPromise, timeoutPromise])) as {
       openAISettings?: string;
     };
-    contentLogger.info(
+    logger.info(
       'Storage data received: ' + (data ? 'Data found' : 'No data found')
     );
 
     if (data?.openAISettings) {
       const settings = JSON.parse(data.openAISettings);
-      contentLogger.info(
+      logger.info(
         'Parsed OpenAI settings: ' +
           JSON.stringify({
             endpoint: settings.endpoint,
@@ -192,7 +192,7 @@ export async function loadOpenAISettings(
       return settings;
     }
 
-    contentLogger.info(
+    logger.info(
       'No OpenAI settings found, using defaults: ' +
         JSON.stringify({
           endpoint: defaultOpenAISettings.endpoint,
@@ -204,8 +204,8 @@ export async function loadOpenAISettings(
     );
     return defaultOpenAISettings;
   } catch (error) {
-    contentLogger.error('Error loading OpenAI settings: ' + String(error));
-    contentLogger.info('Using default OpenAI settings due to error');
+    logger.error('Error loading OpenAI settings: ' + String(error));
+    logger.info('Using default OpenAI settings due to error');
     return defaultOpenAISettings;
   }
 }
@@ -229,7 +229,7 @@ export async function saveOpenAISettings(
     await Promise.race([savePromise, timeoutPromise]);
     return true;
   } catch (error) {
-    contentLogger.error('Error saving OpenAI settings: ' + String(error));
+    logger.error('Error saving OpenAI settings: ' + String(error));
     return false;
   }
 }
@@ -238,47 +238,47 @@ export async function saveOpenAISettings(
 function getOpenAIClient(settings: OpenAISettings): OpenAI {
   // If we already have a client instance, return it
   if (openAIClientInstance) {
-    contentLogger.info('Reusing existing OpenAI client instance');
+    logger.info('Reusing existing OpenAI client instance');
     return openAIClientInstance;
   }
 
-  contentLogger.info('Creating new OpenAI client with:');
+  logger.info('Creating new OpenAI client with:');
 
   // More detailed API key logging
   if (!settings.apiKey) {
-    contentLogger.error('API Key is missing or empty');
+    logger.error('API Key is missing or empty');
     throw new Error('No API key provided for OpenAI client');
   }
 
   if (settings.apiKey.trim() === '') {
-    contentLogger.error('API Key is empty (just whitespace)');
+    logger.error('API Key is empty (just whitespace)');
     throw new Error('API key is empty (contains only whitespace)');
   }
 
   // Log API key info (safely)
   const apiKeyLength = settings.apiKey.length;
-  contentLogger.info(
+  logger.info(
     '- API Key: ' +
       `${settings.apiKey.substring(0, 3)}...${settings.apiKey.substring(apiKeyLength - 4)} (length: ${apiKeyLength})`
   );
-  contentLogger.info('- Endpoint: ' + settings.endpoint);
-  contentLogger.info('- Model: ' + settings.model);
+  logger.info('- Endpoint: ' + settings.endpoint);
+  logger.info('- Model: ' + settings.model);
 
   try {
     // Create the client with detailed error handling
-    contentLogger.info('Attempting to create OpenAI client...');
+    logger.info('Attempting to create OpenAI client...');
     openAIClientInstance = new OpenAI({
       apiKey: settings.apiKey,
       baseURL: settings.endpoint,
       dangerouslyAllowBrowser: true, // Allow running in browser environment (Chrome extension)
     });
-    contentLogger.info('OpenAI client created successfully');
+    logger.info('OpenAI client created successfully');
     return openAIClientInstance;
   } catch (error) {
-    contentLogger.error('Error creating OpenAI client: ' + String(error));
+    logger.error('Error creating OpenAI client: ' + String(error));
     // More detailed error message
     const errorMessage = error instanceof Error ? error.message : String(error);
-    contentLogger.error('Error details: ' + errorMessage);
+    logger.error('Error details: ' + errorMessage);
     throw new Error(`Failed to create OpenAI client: ${errorMessage}`);
   }
 }
@@ -286,7 +286,7 @@ function getOpenAIClient(settings: OpenAISettings): OpenAI {
 // Reset the OpenAI client (useful for testing or when settings change)
 export function resetOpenAIClient(): void {
   openAIClientInstance = null;
-  contentLogger.info('OpenAI client instance reset');
+  logger.info('OpenAI client instance reset');
 }
 
 // Analyze job description using OpenAI with improved error handling and retries
@@ -304,26 +304,26 @@ export async function analyzeJobDescription(
   while (retries <= maxRetries) {
     try {
       // Validate settings before creating client
-      contentLogger.info('Validating OpenAI settings before analysis...');
+      logger.info('Validating OpenAI settings before analysis...');
       if (!settings.apiKey || settings.apiKey.trim() === '') {
-        contentLogger.error('API key is missing or empty');
+        logger.error('API key is missing or empty');
         throw new Error('API key is missing or empty');
       }
 
       if (!settings.endpoint || settings.endpoint.trim() === '') {
         settings.endpoint = 'https://api.openai.com/v1'; // Use default if empty
-        contentLogger.info('Using default endpoint: ' + settings.endpoint);
+        logger.info('Using default endpoint: ' + settings.endpoint);
       }
 
       if (!settings.model || settings.model.trim() === '') {
         settings.model = 'gpt-3.5-turbo'; // Use default if empty
-        contentLogger.info('Using default model: ' + settings.model);
+        logger.info('Using default model: ' + settings.model);
       }
 
       // Get or create OpenAI client with detailed logging
-      contentLogger.info('Getting OpenAI client for job description analysis...');
+      logger.info('Getting OpenAI client for job description analysis...');
       const openai = getOpenAIClient(settings);
-      contentLogger.info('OpenAI client ready for job description analysis');
+      logger.info('OpenAI client ready for job description analysis');
 
       // Prepare messages
       const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -352,21 +352,21 @@ export async function analyzeJobDescription(
       ];
 
       // Log the request with more details
-      contentLogger.info('API Request - Detailed Information:');
-      contentLogger.info('- Model: ' + settings.model);
-      contentLogger.info('- Endpoint: ' + settings.endpoint);
-      contentLogger.info(
+      logger.info('API Request - Detailed Information:');
+      logger.info('- Model: ' + settings.model);
+      logger.info('- Endpoint: ' + settings.endpoint);
+      logger.info(
         '- API Key: ' +
           (settings.apiKey ? 'sk-...' + settings.apiKey.slice(-4) : 'undefined')
       );
-      contentLogger.info('- Message Count: ' + messages.length);
-      contentLogger.info(
+      logger.info('- Message Count: ' + messages.length);
+      logger.info(
         '- System Message: ' +
           (typeof messages[0].content === 'string'
             ? messages[0].content.substring(0, 50) + '...'
             : 'Non-string content')
       );
-      contentLogger.info(
+      logger.info(
         '- User Message Preview: ' +
           (typeof messages[1].content === 'string'
             ? messages[1].content.substring(0, 50) + '...'
@@ -374,7 +374,7 @@ export async function analyzeJobDescription(
       );
 
       // Log job description length for debugging
-      contentLogger.info(
+      logger.info(
         '- Job Description Length: ' +
           jobDescription.length +
           ' characters, Preview: ' +
@@ -385,11 +385,11 @@ export async function analyzeJobDescription(
       // Make the API request with a proper AbortController for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        contentLogger.warn('API request timeout reached');
+        logger.warn('API request timeout reached');
         controller.abort();
       }, 120000);
 
-      contentLogger.info('Making API request to analyze job description...');
+      logger.info('Making API request to analyze job description...');
       let response;
 
       try {
@@ -403,73 +403,73 @@ export async function analyzeJobDescription(
         );
 
         clearTimeout(timeoutId);
-        contentLogger.info('API request completed successfully');
+        logger.info('API request completed successfully');
       } catch (apiError) {
         clearTimeout(timeoutId);
 
         // More detailed API error logging
-        contentLogger.error('API call error details:');
+        logger.error('API call error details:');
 
         if (apiError instanceof Error) {
-          contentLogger.error('- Error name: ' + apiError.name);
-          contentLogger.error('- Error message: ' + apiError.message);
-          contentLogger.error('- Error stack: ' + apiError.stack);
+          logger.error('- Error name: ' + apiError.name);
+          logger.error('- Error message: ' + apiError.message);
+          logger.error('- Error stack: ' + apiError.stack);
 
           if (apiError.name === 'AbortError') {
-            contentLogger.error('Request was aborted due to timeout');
+            logger.error('Request was aborted due to timeout');
             throw new Error('API request timed out after 30 seconds');
           }
 
           // Check for common OpenAI API errors
           if (apiError.message.includes('401')) {
-            contentLogger.error('Authentication error - invalid API key');
+            logger.error('Authentication error - invalid API key');
             throw new Error('API authentication failed: Invalid API key');
           }
 
           if (apiError.message.includes('429')) {
-            contentLogger.error('Rate limit exceeded');
+            logger.error('Rate limit exceeded');
             throw new Error('API rate limit exceeded. Please try again later.');
           }
         } else {
-          contentLogger.error('- Non-Error object thrown: ' + String(apiError));
+          logger.error('- Non-Error object thrown: ' + String(apiError));
         }
 
-        contentLogger.error('Error during API call: ' + String(apiError));
+        logger.error('Error during API call: ' + String(apiError));
         throw new Error(
           `API call failed: ${apiError instanceof Error ? apiError.message : String(apiError)}`
         );
       }
 
       // Log response
-      contentLogger.info('API Response received: ' + JSON.stringify(response));
+      logger.info('API Response received: ' + JSON.stringify(response));
 
       // Extract and validate response content
-      contentLogger.info('Extracting content from API response...');
+      logger.info('Extracting content from API response...');
 
       if (!response.choices || response.choices.length === 0) {
-        contentLogger.error(
+        logger.error(
           'API response has no choices array or empty choices array'
         );
         throw new Error('Invalid API response: No choices returned');
       }
 
-      contentLogger.info('Response choices count: ' + response.choices.length);
+      logger.info('Response choices count: ' + response.choices.length);
 
       if (!response.choices[0].message) {
-        contentLogger.error('First choice has no message property');
+        logger.error('First choice has no message property');
         throw new Error('Invalid API response: No message in first choice');
       }
 
       const { content } = response.choices[0].message;
 
       if (!content) {
-        contentLogger.error(
+        logger.error(
           'Message has no content property or content is empty'
         );
         throw new Error('No content in response');
       }
-      contentLogger.info('Raw API response content length: ' + content.length);
-      contentLogger.info(
+      logger.info('Raw API response content length: ' + content.length);
+      logger.info(
         'Raw API response content preview: ' +
           'Raw API response content preview:' +
           typeof content ===
@@ -486,12 +486,12 @@ export async function analyzeJobDescription(
         typeof processedContent === 'string' &&
         processedContent.includes('```')
       ) {
-        contentLogger.info('Markdown code blocks detected, cleaning up...');
+        logger.info('Markdown code blocks detected, cleaning up...');
         processedContent = processedContent.replace(
           /```(?:json)?\s*([\s\S]*?)\s*```/g,
           '$1'
         );
-        contentLogger.info(
+        logger.info(
           'Processed content after removing markdown (preview): ' +
             processedContent.substring(0, 100) +
             '...'
@@ -502,7 +502,7 @@ export async function analyzeJobDescription(
       if (typeof processedContent === 'string') {
         processedContent = processedContent.trim();
       } else {
-        contentLogger.error(
+        logger.error(
           'Processed content is not a string: ' + typeof processedContent
         );
         throw new Error('Response content is not a string');
@@ -510,10 +510,10 @@ export async function analyzeJobDescription(
 
       // Parse the JSON response
       try {
-        contentLogger.info('Attempting to parse JSON response...');
+        logger.info('Attempting to parse JSON response...');
         // Try to parse the processed content
         const parsedContent = JSON.parse(processedContent);
-        contentLogger.info(
+        logger.info(
           'Successfully parsed JSON. Keys found: ' +
             Object.keys(parsedContent).join(', ')
         );
@@ -524,7 +524,7 @@ export async function analyzeJobDescription(
           !parsedContent.requirements &&
           !parsedContent.responsibilities
         ) {
-          contentLogger.warn('Parsed JSON is missing expected keys');
+          logger.warn('Parsed JSON is missing expected keys');
         }
 
         return {
@@ -533,8 +533,8 @@ export async function analyzeJobDescription(
           responsibilities: parsedContent.responsibilities || [],
         };
       } catch (jsonError) {
-        contentLogger.error('Error parsing API response: ' + String(jsonError));
-        contentLogger.error(
+        logger.error('Error parsing API response: ' + String(jsonError));
+        logger.error(
           'Content that failed to parse (preview): ' +
             processedContent.substring(0, 200) +
             (processedContent.length > 200 ? '...' : '')
@@ -542,18 +542,18 @@ export async function analyzeJobDescription(
 
         // Attempt to extract JSON using regex as a fallback
         try {
-          contentLogger.info('Attempting fallback JSON extraction with regex...');
+          logger.info('Attempting fallback JSON extraction with regex...');
           const jsonMatch = processedContent.match(/{[\s\S]*}/);
           if (jsonMatch) {
             const extractedJson = jsonMatch[0];
-            contentLogger.info(
+            logger.info(
               'Extracted JSON using regex (preview): ' +
                 extractedJson.substring(0, 100) +
                 (extractedJson.length > 100 ? '...' : '')
             );
 
             const parsedContent = JSON.parse(extractedJson);
-            contentLogger.info('Successfully parsed extracted JSON');
+            logger.info('Successfully parsed extracted JSON');
             return {
               keywords: parsedContent.keywords || [],
               requirements: parsedContent.requirements || [],
@@ -561,26 +561,26 @@ export async function analyzeJobDescription(
             };
           }
 
-          contentLogger.error('No JSON-like structure found in the response');
+          logger.error('No JSON-like structure found in the response');
         } catch (fallbackError) {
-          contentLogger.error(
+          logger.error(
             'Fallback parsing also failed: ' + String(fallbackError)
           );
         }
 
         // If we got here and retries are left, throw so we can retry
         if (retries < maxRetries) {
-          contentLogger.info(
+          logger.info(
             `Will retry analysis (${retries + 1}/${maxRetries} attempts used)`
           );
           throw new Error('Failed to parse API response');
         }
 
-        contentLogger.error('Maximum retry attempts reached, returning null');
+        logger.error('Maximum retry attempts reached, returning null');
         return null;
       }
     } catch (error) {
-      contentLogger.error(
+      logger.error(
         `Error analyzing job description (attempt ${retries + 1}/${maxRetries + 1}): ` +
           String(error)
       );
@@ -589,7 +589,7 @@ export async function analyzeJobDescription(
       retries++;
 
       if (retries <= maxRetries) {
-        contentLogger.info(
+        logger.info(
           `Retrying job description analysis (attempt ${retries + 1}/${maxRetries + 1})...`
         );
         // Add exponential backoff
@@ -598,7 +598,7 @@ export async function analyzeJobDescription(
           setTimeout(resolve, 1000 * 2 ** (retries - 1));
         });
       } else {
-        contentLogger.error('Maximum retry attempts reached.');
+        logger.error('Maximum retry attempts reached.');
         return null;
       }
     }
@@ -693,11 +693,11 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
     ];
 
     // Log the request
-    contentLogger.info('Resume API Request - Model:' + settings.model);
-    contentLogger.info(
+    logger.info('Resume API Request - Model:' + settings.model);
+    logger.info(
       'Resume API Request - Messages:' + JSON.stringify(messages, null, 2)
     );
-    contentLogger.info(
+    logger.info(
       'Resume API Request - API Key:' +
         (settings.apiKey ? 'sk-...' + settings.apiKey.slice(-4) : 'undefined')
     );
@@ -706,7 +706,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
     const controller = new AbortController();
     // Use a shorter timeout (30 seconds) to prevent hanging
     const timeoutId = setTimeout(() => {
-      contentLogger.warn(
+      logger.warn(
         'API request timeout reached (120 seconds) - aborting request'
       );
       controller.abort();
@@ -719,10 +719,10 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
       temperature: 0.5,
     }).length;
 
-    contentLogger.info(
+    logger.info(
       `Making API request to generate resume... (request size: ${requestSize} bytes)`
     );
-    contentLogger.info(
+    logger.info(
       `Template size: ${template.length} bytes, Job description size: ${jobDescription.length} bytes`
     );
     const requestOptions = {
@@ -730,7 +730,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
       messages: messages,
       temperature: 0.5,
     };
-    contentLogger.info(
+    logger.info(
       'Request Options: ' + JSON.stringify(requestOptions, null, 2)
     );
     let response;
@@ -738,7 +738,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
     try {
       // If the request is very large, try with a trimmed version
       if (requestSize > 100000) {
-        contentLogger.warn(
+        logger.warn(
           'Request size is very large (> 100KB), attempting with trimmed content...'
         );
 
@@ -780,12 +780,12 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
           temperature: 0.5,
         };
 
-        contentLogger.info('Sending trimmed request...');
+        logger.info('Sending trimmed request...');
         response = await openai.chat.completions.create(trimmedRequestOptions, {
           signal: controller.signal as any,
         });
       } else {
-        contentLogger.info('Sending full request...');
+        logger.info('Sending full request...');
         response = await openai.chat.completions.create(requestOptions, {
           signal: controller.signal as any,
         });
@@ -794,7 +794,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
       clearTimeout(timeoutId);
     } catch (apiError) {
       clearTimeout(timeoutId);
-      contentLogger.info(
+      logger.info(
         'API request for resume generation completed successfully'
       );
 
@@ -802,14 +802,14 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
         throw new Error('API request timed out after 60 seconds');
       }
 
-      contentLogger.error('Error during API call: ' + String(apiError));
+      logger.error('Error during API call: ' + String(apiError));
       throw new Error(
         `API call failed: ${apiError instanceof Error ? apiError.message : String(apiError)}`
       );
     }
 
     // Log response
-    contentLogger.info('Resume API Response received');
+    logger.info('Resume API Response received');
 
     const { content } = response.choices[0].message;
     if (!content) {
@@ -817,7 +817,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
     }
 
     // Extract content inside <GENERATE> tags
-    contentLogger.info('Extracting LaTeX content from response...');
+    logger.info('Extracting LaTeX content from response...');
 
     // Check if content contains <GENERATE> tags
     const generateTagRegex = /<GENERATE>([\s\S]*?)<\/GENERATE>/;
@@ -826,7 +826,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
     if (match && match[1]) {
       // Found content inside <GENERATE> tags
       const extractedContent = match[1].trim();
-      contentLogger.info(
+      logger.info(
         `Successfully extracted LaTeX content (${extractedContent.length} bytes)`
       );
 
@@ -835,7 +835,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
     }
 
     // No <GENERATE> tags found, check if it looks like LaTeX
-    contentLogger.warn(
+    logger.warn(
       'No <GENERATE> tags found in response, checking for LaTeX content'
     );
 
@@ -845,17 +845,17 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
       content.includes('\\begin{document}')
     ) {
       // Looks like LaTeX, return it without wrapping
-      contentLogger.info('Found LaTeX content without tags');
+      logger.info('Found LaTeX content without tags');
       return content.trim();
     }
 
     // Not sure if it's LaTeX, log a warning and wrap it anyway
-    contentLogger.warn(
+    logger.warn(
       'Response may not contain proper LaTeX, returning content as is'
     );
     return content.trim();
   } catch (error) {
-    contentLogger.error(
+    logger.error(
       `Error generating tailored resume (attempt ${retries + 1}/${maxRetries + 1}): ` +
         String(error)
     );
@@ -864,7 +864,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
     retries++;
 
     if (retries <= maxRetries) {
-      contentLogger.info(
+      logger.info(
         `Retrying resume generation (attempt ${retries + 1}/${maxRetries + 1})...`
       );
       // Add exponential backoff
@@ -873,7 +873,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
         setTimeout(resolve, 1000 * 2 ** (retries - 1));
       });
     } else {
-      contentLogger.error('Maximum retry attempts reached.');
+      logger.error('Maximum retry attempts reached.');
       return null;
     }
   }
@@ -897,41 +897,41 @@ export async function runResumeWorkflow(
   callbacks?: ProgressCallbacks
 ): Promise<string | null> {
   try {
-    contentLogger.info(
+    logger.info(
       'Running resume workflow with job description: ' +
         jobDescription.substring(0, 100) +
         '...'
     );
 
     const reportProgress = async (phase: string, percentage: number) => {
-      contentLogger.info(`Progress: ${phase} - ${percentage}%`);
+      logger.info(`Progress: ${phase} - ${percentage}%`);
       await callbacks?.onProgress?.(phase, percentage);
     };
 
     await reportProgress('Initializing', 5);
 
     // Load user profile
-    contentLogger.info('Loading user profile...');
+    logger.info('Loading user profile...');
     const profile = await loadUserProfile();
-    contentLogger.info(
+    logger.info(
       'Loaded profile: ' + (profile ? 'Profile found' : 'No profile found')
     );
 
     await reportProgress('Loading data', 10);
 
     // Load template
-    contentLogger.info('Loading resume template...');
+    logger.info('Loading resume template...');
     const template = await loadResumeTemplate();
-    contentLogger.info(
+    logger.info(
       'Loaded template: ' + (template ? 'Template found' : 'No template found')
     );
 
     await reportProgress('Loading settings', 15);
 
     // Load settings
-    contentLogger.info('Loading OpenAI settings...');
+    logger.info('Loading OpenAI settings...');
     const settings = await loadOpenAISettings();
-    contentLogger.info(
+    logger.info(
       'Loaded settings: ' +
         JSON.stringify({
           endpoint: settings.endpoint,
@@ -972,7 +972,7 @@ export async function runResumeWorkflow(
     // Call the generation start callback
     await callbacks?.onGenerationStart?.();
 
-    contentLogger.info(
+    logger.info(
       'Skipping separate analysis step and directly generating resume...'
     );
 
@@ -1034,20 +1034,20 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
           temperature: 0.5,
         }).length;
 
-        contentLogger.info(
+        logger.info(
           `Making combined API request... (request size: ${requestSize} bytes)`
         );
-        contentLogger.info(
+        logger.info(
           `Template size: ${template.length} bytes, Job description size: ${jobDescription.length} bytes`
         );
 
         // Prepare request options with AbortController and shorter timeout
-        contentLogger.info(
+        logger.info(
           'Preparing request options with AbortController and 30s timeout'
         );
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
-          contentLogger.warn(
+          logger.warn(
             'API request timeout reached (30 seconds) - aborting request'
           );
           controller.abort();
@@ -1065,7 +1065,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
         try {
           // If the request is very large, try with a trimmed version
           if (requestSize > 100000) {
-            contentLogger.warn(
+            logger.warn(
               'Request size is very large (> 100KB), attempting with trimmed content...'
             );
 
@@ -1107,10 +1107,10 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
               temperature: 0.5,
             };
 
-            contentLogger.info('Sending trimmed request with timeout...');
+            logger.info('Sending trimmed request with timeout...');
             try {
               // Use direct approach with AbortController
-              contentLogger.info(
+              logger.info(
                 'Using direct API call approach with AbortController for trimmed request'
               );
               response = await openai.chat.completions.create(
@@ -1118,14 +1118,14 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
                 { signal: controller.signal as any }
               );
               clearTimeout(timeoutId); // Clear timeout on success
-              contentLogger.info('Trimmed request successful');
+              logger.info('Trimmed request successful');
             } catch (err) {
-              contentLogger.error(`Error with trimmed request: ${String(err)}`);
+              logger.error(`Error with trimmed request: ${String(err)}`);
               throw err;
             }
           } else {
-            contentLogger.info('Sending full request with timeout...');
-            contentLogger.info(
+            logger.info('Sending full request with timeout...');
+            logger.info(
               'Using direct API call approach with AbortController for full request'
             );
             try {
@@ -1133,24 +1133,24 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
                 signal: controller.signal as any,
               });
               clearTimeout(timeoutId); // Clear timeout on success
-              contentLogger.info('API request completed successfully');
+              logger.info('API request completed successfully');
             } catch (apiError) {
               clearTimeout(timeoutId); // Clear timeout on error
 
               if (apiError instanceof Error && apiError.name === 'AbortError') {
-                contentLogger.error('API request was aborted due to timeout');
+                logger.error('API request was aborted due to timeout');
                 throw new Error('API request timed out after 30 seconds');
               }
 
-              contentLogger.error('API call error: ' + String(apiError));
+              logger.error('API call error: ' + String(apiError));
               throw apiError; // Re-throw to be caught by the outer catch block
             }
           }
 
-          contentLogger.info('API request completed successfully');
+          logger.info('API request completed successfully');
 
           // Add detailed response logging
-          contentLogger.info(
+          logger.info(
             `Response received: ${JSON.stringify({
               id: response.id,
               model: response.model,
@@ -1158,30 +1158,30 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
               usage: response.usage,
             })}`
           );
-          contentLogger.info('content:' + JSON.stringify(response));
+          logger.info('content:' + JSON.stringify(response));
 
           if (!response.choices || response.choices.length === 0) {
-            contentLogger.error('No choices in response');
+            logger.error('No choices in response');
             throw new Error('No choices in response');
           }
 
           if (!response.choices[0].message) {
-            contentLogger.error('No message in first choice');
+            logger.error('No message in first choice');
             throw new Error('No message in first choice');
           }
 
           const { content } = response.choices[0].message;
           if (!content) {
-            contentLogger.error('No content in message');
+            logger.error('No content in message');
             throw new Error('No content in response');
           }
 
           // Log content details
-          contentLogger.info(`Content received, length: ${content.length}`);
-          contentLogger.info(`Content preview: ${content.substring(0, 100)}...`);
+          logger.info(`Content received, length: ${content.length}`);
+          logger.info(`Content preview: ${content.substring(0, 100)}...`);
 
           // Extract content inside <GENERATE> tags
-          contentLogger.info('Extracting LaTeX content from response...');
+          logger.info('Extracting LaTeX content from response...');
 
           // Check if content contains <GENERATE> tags
           const generateTagRegex = /<GENERATE>([\s\S]*?)<\/GENERATE>/;
@@ -1190,7 +1190,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
           if (match && match[1]) {
             // Found content inside <GENERATE> tags
             const extractedContent = match[1].trim();
-            contentLogger.info(
+            logger.info(
               `Successfully extracted LaTeX content (${extractedContent.length} bytes)`
             );
 
@@ -1199,7 +1199,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
           }
 
           // No <GENERATE> tags found, check if it looks like LaTeX
-          contentLogger.warn(
+          logger.warn(
             'No <GENERATE> tags found in response, checking for LaTeX content'
           );
 
@@ -1209,12 +1209,12 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
             content.includes('\\begin{document}')
           ) {
             // Looks like LaTeX, wrap it in <GENERATE> tags
-            contentLogger.info('Found LaTeX content without tags');
+            logger.info('Found LaTeX content without tags');
             return content.trim();
           }
 
           // Not sure if it's LaTeX, log a warning and wrap it anyway
-          contentLogger.warn(
+          logger.warn(
             'Response may not contain proper LaTeX, returning content as is'
           );
           return content.trim();
@@ -1223,13 +1223,13 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
             throw new Error('API request timed out after 30 seconds');
           }
 
-          contentLogger.error('Error during API call: ' + String(apiError));
+          logger.error('Error during API call: ' + String(apiError));
           throw new Error(
             `API call failed: ${apiError instanceof Error ? apiError.message : String(apiError)}`
           );
         }
       } catch (error) {
-        contentLogger.error('Error generating resume: ' + String(error));
+        logger.error('Error generating resume: ' + String(error));
         return null;
       }
     };
@@ -1254,7 +1254,7 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
 
     return result;
   } catch (error) {
-    contentLogger.error('Error running resume workflow: ' + String(error));
+    logger.error('Error running resume workflow: ' + String(error));
     await callbacks?.onError?.(
       error instanceof Error ? error : new Error(String(error))
     );

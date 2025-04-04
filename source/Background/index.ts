@@ -1,6 +1,6 @@
 import { browser, Notifications, Runtime } from 'webextension-polyfill-ts';
 import { runResumeWorkflow } from '../utils/aiWorkflow';
-import { contentLogger } from '../utils/debugLogger';
+import { logger } from '../utils/logger';
 
 const CONTEXT_MENU_ID = 'GENERATE_RESUME_SNIPPET';
 let isWorkflowRunning = false;
@@ -10,7 +10,7 @@ async function createContextMenu() {
   try {
     // First remove any existing context menus to avoid duplicates
     await browser.contextMenus.removeAll();
-    contentLogger.info('Removed existing context menus');
+    logger.info('Removed existing context menus');
 
     // Create context menu item
     browser.contextMenus.create({
@@ -19,15 +19,15 @@ async function createContextMenu() {
       contexts: ['selection'], // Only show when text is selected
     });
 
-    contentLogger.info('Context menu created successfully.');
+    logger.info('Context menu created successfully.');
   } catch (error) {
-    contentLogger.error('Error creating context menu: ' + String(error));
+    logger.error('Error creating context menu: ' + String(error));
   }
 }
 
 // Create context menu when extension is installed
 browser.runtime.onInstalled.addListener((): void => {
-  contentLogger.info('🦊 Extension installed');
+  logger.info('🦊 Extension installed');
   createContextMenu();
 });
 
@@ -40,7 +40,7 @@ async function sendTabMessage(tabId: number, message: any): Promise<any> {
   try {
     return await browser.tabs.sendMessage(tabId, message);
   } catch (error) {
-    contentLogger.error('Error sending message to tab: ' + String(error));
+    logger.error('Error sending message to tab: ' + String(error));
     // If the content script isn't loaded yet, we might need to inject it
     try {
       await browser.tabs.executeScript(tabId, {
@@ -49,7 +49,7 @@ async function sendTabMessage(tabId: number, message: any): Promise<any> {
       // Try sending the message again after injecting the script
       return await browser.tabs.sendMessage(tabId, message);
     } catch (injectError) {
-      contentLogger.error(
+      logger.error(
         'Failed to inject content script: ' + String(injectError)
       );
       throw error;
@@ -68,7 +68,7 @@ async function showNotification(
     try {
       return await browser.notifications.create(options);
     } catch (error) {
-      contentLogger.error(
+      logger.error(
         `Notification error (attempt ${retries + 1}/${maxRetries + 1}): ` +
           String(error)
       );
@@ -80,7 +80,7 @@ async function showNotification(
           setTimeout(resolve, 500);
         });
       } else {
-        contentLogger.error('Maximum retry attempts reached for notification.');
+        logger.error('Maximum retry attempts reached for notification.');
         throw error;
       }
     }
@@ -91,7 +91,7 @@ async function showNotification(
 
 // Listener for context menu clicks with debouncing
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
-  contentLogger.info('Context menu clicked with ID: ' + info.menuItemId);
+  logger.info('Context menu clicked with ID: ' + info.menuItemId);
 
   // Exit early if workflow is already running or if menu item doesn't match
   if (
@@ -100,7 +100,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     !info.selectionText ||
     !tab?.id
   ) {
-    contentLogger.info(
+    logger.info(
       isWorkflowRunning
         ? 'Ignoring click - workflow already running'
         : 'Ignoring click - conditions not met'
@@ -111,8 +111,8 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
   // Set the flag to prevent multiple workflows
   isWorkflowRunning = true;
 
-  contentLogger.info('Starting resume generation workflow...');
-  contentLogger.info(
+  logger.info('Starting resume generation workflow...');
+  logger.info(
     'Selected Text (Job Description): ' +
       (info.selectionText
         ? info.selectionText.substring(0, 100) + '...'
@@ -132,7 +132,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 
     // Create our progress reporting function
     const updateProgress = async (phase: string, percentage: number) => {
-      contentLogger.info(`Progress update: ${phase} ${percentage}%`);
+      logger.info(`Progress update: ${phase} ${percentage}%`);
       await sendTabMessage(tab.id, {
         action: 'updateLoadingToast',
         id: loadingNotificationId,
@@ -143,24 +143,24 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     // Run the resume workflow with comprehensive progress updates and error handling
     const result = await runResumeWorkflow(info.selectionText, {
       onAnalysisStart: async () => {
-        contentLogger.info('Analysis started callback triggered');
+        logger.info('Analysis started callback triggered');
         await updateProgress('Analyzing job description', 25);
       },
       onAnalysisComplete: async () => {
-        contentLogger.info('Analysis completed callback triggered');
+        logger.info('Analysis completed callback triggered');
         await updateProgress('Analysis complete', 50);
       },
       onGenerationStart: async () => {
-        contentLogger.info('Generation started callback triggered');
+        logger.info('Generation started callback triggered');
         await updateProgress('Generating resume', 60);
       },
       onGenerationComplete: async () => {
-        contentLogger.info('Generation completed callback triggered');
+        logger.info('Generation completed callback triggered');
         await updateProgress('Resume generated', 90);
       },
       onProgress: updateProgress,
       onError: async error => {
-        contentLogger.error(
+        logger.error(
           'Workflow error caught in callback: ' + String(error)
         );
         await sendTabMessage(tab.id, {
@@ -209,9 +209,9 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 
         // Save back to storage
         await browser.storage.local.set({ recentlyResumeList });
-        contentLogger.info('Resume saved to storage for later access');
+        logger.info('Resume saved to storage for later access');
       } catch (storageError) {
-        contentLogger.error(
+        logger.error(
           'Error saving resume to storage: ' + String(storageError)
         );
       }
@@ -224,7 +224,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         message: 'Resume snippet generated and copied to clipboard!',
       });
 
-      contentLogger.info('Resume workflow completed successfully');
+      logger.info('Resume workflow completed successfully');
     } else {
       // Show error notification if no result but no exception
       await showNotification({
@@ -234,10 +234,10 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         message: 'Failed to generate resume snippet. Please try again.',
       });
 
-      contentLogger.info('Resume workflow completed with no result');
+      logger.info('Resume workflow completed with no result');
     }
   } catch (error) {
-    contentLogger.error('Uncaught error in resume workflow: ' + String(error));
+    logger.error('Uncaught error in resume workflow: ' + String(error));
 
     // Make sure to hide the loading toast if there's an uncaught error
     try {
@@ -246,7 +246,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         id: loadingNotificationId,
       });
     } catch (toastError) {
-      contentLogger.error(
+      logger.error(
         'Error hiding loading toast after error: ' + String(toastError)
       );
     }
@@ -260,24 +260,24 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
     } catch (notificationError) {
-      contentLogger.error(
+      logger.error(
         'Failed to show error notification: ' + String(notificationError)
       );
     }
   } finally {
     // Always reset the workflow flag when done
     isWorkflowRunning = false;
-    contentLogger.info('Resume workflow complete, ready for next request');
+    logger.info('Resume workflow complete, ready for next request');
   }
 });
 
 // Message listener with improved error handling
 browser.runtime.onMessage.addListener(
   (message: unknown, sender: Runtime.MessageSender) => {
-    contentLogger.info(
+    logger.info(
       'Message received in background: ' + JSON.stringify(message)
     );
-    contentLogger.info('Message sender: ' + JSON.stringify(sender));
+    logger.info('Message sender: ' + JSON.stringify(sender));
 
     // Handle messages if needed
     return Promise.resolve({ status: 'Received' });

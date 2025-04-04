@@ -1,6 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { browser } from 'webextension-polyfill-ts';
-import { contentLogger } from './debugLogger';
+import { logger } from './logger';
 
 // Configure PDF.js worker with fallback options
 // 1. Try to use the web accessible resource in the extension
@@ -9,15 +9,15 @@ import { contentLogger } from './debugLogger';
 let workerSrc = '';
 try {
   workerSrc = browser.runtime.getURL('pdf-worker/pdf.worker.min.mjs');
-  contentLogger.info('Using PDF.js worker from extension:', workerSrc);
+  logger.info('Using PDF.js worker from extension:', workerSrc);
 } catch (error) {
-  contentLogger.warn('Failed to get runtime URL for PDF worker:', error);
+  logger.warn('Failed to get runtime URL for PDF worker:', error);
   // Fallback to direct path (may not work in all environments)
   workerSrc = '/pdf-worker/pdf.worker.min.mjs';
 }
 
 // Set the worker source with logging
-contentLogger.info('Setting PDF.js worker source to:', workerSrc);
+logger.info('Setting PDF.js worker source to:', workerSrc);
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
 /**
@@ -29,23 +29,23 @@ export async function extractTextFromPdf(file: File): Promise<string> {
   try {
     // First attempt: Use ArrayBuffer approach
     try {
-      contentLogger.debug('Extracting PDF with ArrayBuffer method');
+      logger.debug('Extracting PDF with ArrayBuffer method');
       return await extractPdfWithArrayBuffer(file);
     } catch (arrayBufferError) {
-      contentLogger.warn('Error extracting PDF with ArrayBuffer method:', arrayBufferError);
+      logger.warn('Error extracting PDF with ArrayBuffer method:', arrayBufferError);
       // If first method fails, try the second method
       try {
-        contentLogger.debug('Trying Data URL method for PDF extraction');
+        logger.debug('Trying Data URL method for PDF extraction');
         return await extractPdfWithDataUrl(file);
       } catch (dataUrlError) {
-        contentLogger.warn('Error extracting PDF with Data URL method:', dataUrlError);
+        logger.warn('Error extracting PDF with Data URL method:', dataUrlError);
         // If both PDF.js methods fail, use plain text fallback
-        contentLogger.debug('Trying fallback text extraction method');
+        logger.debug('Trying fallback text extraction method');
         return await extractPdfAsFallbackText(file);
       }
     }
   } catch (error) {
-    contentLogger.error('All PDF extraction methods failed:', error);
+    logger.error('All PDF extraction methods failed:', error);
     // Return error message so AI can still try to handle this case
     return `Error extracting PDF content: ${error instanceof Error ? error.message : 'Unknown error'}. This is a PDF resume, please try to extract information based on this context.`;
   }
@@ -68,7 +68,7 @@ async function extractPdfWithArrayBuffer(file: File): Promise<string> {
   
   // Load PDF document
   const pdf = await loadingTask.promise;
-  contentLogger.debug(`PDF loaded successfully: ${pdf.numPages} pages`);
+  logger.debug(`PDF loaded successfully: ${pdf.numPages} pages`);
   
   return extractTextFromPdfDocument(pdf);
 }
@@ -89,7 +89,7 @@ async function extractPdfWithDataUrl(file: File): Promise<string> {
         
         // Get data URL and convert to base64
         const dataUrl = event.target.result as string;
-        contentLogger.debug('PDF file read as Data URL');
+        logger.debug('PDF file read as Data URL');
         
         // Load PDF document
         const loadingTask = pdfjsLib.getDocument({
@@ -100,7 +100,7 @@ async function extractPdfWithDataUrl(file: File): Promise<string> {
         });
         
         const pdf = await loadingTask.promise;
-        contentLogger.debug(`PDF loaded successfully from Data URL: ${pdf.numPages} pages`);
+        logger.debug(`PDF loaded successfully from Data URL: ${pdf.numPages} pages`);
         const text = await extractTextFromPdfDocument(pdf);
         resolve(text);
       } catch (error) {
@@ -122,7 +122,7 @@ async function extractTextFromPdfDocument(pdf: pdfjsLib.PDFDocumentProxy): Promi
   // Extract text from each page
   for (let i = 1; i <= pdf.numPages; i++) {
     try {
-      contentLogger.debug(`Processing page ${i} of ${pdf.numPages}`);
+      logger.debug(`Processing page ${i} of ${pdf.numPages}`);
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
       const pageText = textContent.items
@@ -131,17 +131,17 @@ async function extractTextFromPdfDocument(pdf: pdfjsLib.PDFDocumentProxy): Promi
       
       fullText += pageText + '\n\n';
     } catch (pageError) {
-      contentLogger.warn(`Error extracting text from page ${i}:`, pageError);
+      logger.warn(`Error extracting text from page ${i}:`, pageError);
       // Continue with next page instead of failing completely
     }
   }
   
   if (!fullText.trim()) {
-    contentLogger.warn('No text content found in PDF');
+    logger.warn('No text content found in PDF');
     return 'No text content found in PDF.';
   }
   
-  contentLogger.debug(`Extracted ${fullText.length} characters from PDF`);
+  logger.debug(`Extracted ${fullText.length} characters from PDF`);
   return fullText;
 }
 
@@ -156,7 +156,7 @@ export function readTextFile(file: File): Promise<string> {
     reader.onload = (e) => {
       if (e.target?.result) {
         const content = e.target.result as string;
-        contentLogger.debug(`Read ${content.length} characters from text file`);
+        logger.debug(`Read ${content.length} characters from text file`);
         resolve(content);
       } else {
         reject(new Error('Failed to read text file'));
@@ -175,21 +175,21 @@ export function readTextFile(file: File): Promise<string> {
 export async function extractFileContent(file: File): Promise<string> {
   const fileName = file.name.toLowerCase();
   
-  contentLogger.info(`Processing file: ${fileName} (${(file.size / 1024).toFixed(1)} KB)`);
+  logger.info(`Processing file: ${fileName} (${(file.size / 1024).toFixed(1)} KB)`);
   
   if (fileName.endsWith('.pdf')) {
-    contentLogger.debug('Extracting content from PDF file');
+    logger.debug('Extracting content from PDF file');
     return extractTextFromPdf(file);
   } else if (fileName.endsWith('.txt')) {
-    contentLogger.debug('Extracting content from TXT file');
+    logger.debug('Extracting content from TXT file');
     return readTextFile(file);
   } else if (fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
     // For DOC/DOCX files, since we can't easily parse them in browser
     // Use a simpler approach - just tell the AI it's a resume
-    contentLogger.debug('Creating placeholder content for DOC/DOCX file');
+    logger.debug('Creating placeholder content for DOC/DOCX file');
     return `This is a resume in ${fileName.split('.').pop()?.toUpperCase()} format. Please extract all relevant profile information including: name, contact details, work experience, education, skills, and other sections.`;
   } else {
-    contentLogger.error(`Unsupported file type: ${fileName}`);
+    logger.error(`Unsupported file type: ${fileName}`);
     throw new Error('Unsupported file type');
   }
 }
@@ -208,7 +208,7 @@ async function extractPdfAsFallbackText(file: File): Promise<string> {
           return;
         }
         
-        contentLogger.debug('Using fallback binary extraction method');
+        logger.debug('Using fallback binary extraction method');
         
         // Get the binary content as string
         const binary = event.target.result as ArrayBuffer;
@@ -240,15 +240,15 @@ async function extractPdfAsFallbackText(file: File): Promise<string> {
         
         // If nothing was extracted, return a placeholder
         if (!extractedText.trim()) {
-          contentLogger.warn('No text extracted using fallback method');
+          logger.warn('No text extracted using fallback method');
           extractedText = 'PDF content could not be extracted. This is a PDF resume.';
         } else {
-          contentLogger.debug(`Extracted ${extractedText.length} characters using fallback method`);
+          logger.debug(`Extracted ${extractedText.length} characters using fallback method`);
         }
         
         resolve(extractedText);
       } catch (error) {
-        contentLogger.error('Error in fallback extraction:', error);
+        logger.error('Error in fallback extraction:', error);
         reject(error);
       }
     };
