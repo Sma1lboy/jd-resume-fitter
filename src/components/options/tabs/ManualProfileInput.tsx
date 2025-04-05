@@ -5,7 +5,7 @@ import * as Label from '@radix-ui/react-label';
 import { Input } from '@components/ui/input';
 import { Textarea } from '@components/ui/textarea';
 import { InputField, TextareaField } from '@components/ui/form-field';
-import { X, Upload, FileText } from 'lucide-react';
+import { X, Upload, FileText, Plus, PenSquare } from 'lucide-react';
 import {
   MotionDialog,
   DialogHeader,
@@ -324,21 +324,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                 : 'bg-primary-50 hover:bg-primary-100 text-primary-700'
             } border border-gray-200 px-3 py-1 rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500`}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mr-1"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
+            <Plus className="size-4 mr-1" />
             Add Education
           </button>
         </div>
@@ -551,20 +537,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                             className="text-gray-400 hover:text-blue-500 hover:bg-blue-50 p-1 rounded-full"
                             aria-label="Edit education"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="20"
-                              height="20"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
+                            <PenSquare className="size-5" />
                           </button>
                           <button
                             type="button"
@@ -668,21 +641,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                 : 'bg-primary-50 hover:bg-primary-100 text-primary-700'
             } border border-gray-200 px-3 py-1 rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500`}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mr-1"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
+            <Plus className="size-4 mr-1" />
             Add Experience
           </button>
         </div>
@@ -912,20 +871,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                             className="text-gray-400 hover:text-blue-500 hover:bg-blue-50 p-1 rounded-full"
                             aria-label="Edit experience"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="20"
-                              height="20"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
+                            <PenSquare className="size-5" />
                           </button>
                           <button
                             type="button"
