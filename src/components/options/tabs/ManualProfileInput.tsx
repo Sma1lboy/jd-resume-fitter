@@ -145,19 +145,19 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
       <div className="flex gap-4 mb-6">
         <button
           type="button"
-          onClick={() => setJsonModalOpen(true)}
-          className="flex items-center bg-primary-50 hover:bg-primary-100 text-primary-700 border border-primary-200 px-4 py-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          Import from JSON
-        </button>
-        <button
-          type="button"
           onClick={() => setPdfModalOpen(true)}
           className="flex items-center bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-4 py-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500"
         >
           <FileText className="h-4 w-4 mr-2" />
           Import from PDF
+        </button>
+        <button
+          type="button"
+          onClick={() => setJsonModalOpen(true)}
+          className="flex items-center bg-primary-50 hover:bg-primary-100 text-primary-700 border border-primary-200 px-4 py-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          Import from JSON
         </button>
 
         <div className="ml-auto flex gap-2">
