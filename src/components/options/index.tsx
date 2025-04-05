@@ -2,9 +2,8 @@ import * as React from 'react';
 import { browser } from 'webextension-polyfill-ts';
 import * as Tabs from '@radix-ui/react-tabs';
 import { profileToForm, formToProfile } from '@utils/profileConverters';
-import { UserProfileForm } from './tabs/ManualProfileInput';
 import Logo from '@/components/Logo';
-import { UserProfile } from '@/types';
+import { UserProfile, UserProfileForm } from '@/types';
 import { ProfileTab, TemplateTab, JobDescriptionTab } from './tabs';
 import DebugSettings from './DebugSettings';
 
@@ -50,7 +49,9 @@ const debounce = <F extends (...args: any[]) => Promise<any>>(
     latestArgs = null;
   };
 
-  return debouncedFunc as ((...args: Parameters<F>) => void) & { cancel: () => void };
+  return debouncedFunc as ((...args: Parameters<F>) => void) & {
+    cancel: () => void;
+  };
 };
 
 const Options: React.FC = () => {
@@ -72,6 +73,7 @@ const Options: React.FC = () => {
     website: '',
     summary: '',
     skills: '',
+    courses: '',
     experience: '',
     education: '',
     certifications: '',
@@ -103,9 +105,11 @@ const Options: React.FC = () => {
       setStatus('Error loading profile');
     }
   };
-  
+
   // Save profile with auto-save feedback
-  const saveProfileWithFeedback = async (profileToSave: UserProfileForm): Promise<void> => {
+  const saveProfileWithFeedback = async (
+    profileToSave: UserProfileForm
+  ): Promise<void> => {
     try {
       // Convert UserProfileForm to UserProfile using utility function
       const storageProfile = formToProfile(profileToSave);
@@ -113,7 +117,7 @@ const Options: React.FC = () => {
       await browser.storage.local.set({
         userProfile: JSON.stringify(storageProfile),
       });
-      
+
       // Show auto-save status
       setAutoSaveStatus('Profile auto-saved');
       setTimeout(() => setAutoSaveStatus(''), 2000);
@@ -125,6 +129,7 @@ const Options: React.FC = () => {
   };
 
   // Debounced save function
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedSaveProfile = React.useCallback(
     debounce(saveProfileWithFeedback, 1500),
     []
@@ -135,7 +140,7 @@ const Options: React.FC = () => {
     (updatedProfile: UserProfileForm) => {
       // Update state immediately
       setProfile(updatedProfile);
-      
+
       // Schedule debounced save
       debouncedSaveProfile(updatedProfile);
     },
@@ -151,7 +156,7 @@ const Options: React.FC = () => {
       ...profile,
       [name]: value,
     };
-    
+
     // Update state and schedule auto-save
     updateProfileStateWithAutoSave(updatedProfile);
   };
@@ -162,7 +167,7 @@ const Options: React.FC = () => {
   ): Promise<void> => {
     // Cancel any pending debounced saves
     debouncedSaveProfile.cancel?.();
-    
+
     // Save immediately
     await saveProfileWithFeedback(profile);
   };
@@ -226,6 +231,9 @@ const Options: React.FC = () => {
         skills: Array.isArray(jsonData.skills)
           ? jsonData.skills.join(', ')
           : jsonData.skills,
+        courses: Array.isArray(jsonData.courses)
+          ? jsonData.courses.join(', ')
+          : jsonData.courses || '',
         experience: JSON.stringify(jsonData.experience || [], null, 2),
         education: JSON.stringify(jsonData.education || [], null, 2),
         certifications: JSON.stringify(jsonData.projects || [], null, 2),
@@ -244,10 +252,15 @@ const Options: React.FC = () => {
 
         setStatus('Profile imported and saved successfully!');
       } catch (storageError) {
-        console.error('Error saving imported profile to storage:', storageError);
+        console.error(
+          'Error saving imported profile to storage:',
+          storageError
+        );
         setStatus(
           `Profile imported but not saved: ${
-            storageError instanceof Error ? storageError.message : 'Unknown error'
+            storageError instanceof Error
+              ? storageError.message
+              : 'Unknown error'
           }`
         );
       }
@@ -317,7 +330,7 @@ const Options: React.FC = () => {
           </Tabs.List>
 
           <Tabs.Content value="manual" className="bg-white p-6">
-            <ProfileTab 
+            <ProfileTab
               profile={profile}
               onProfileChange={handleProfileChangeWithAutoSave}
               onProfileUpdate={updateProfileStateWithAutoSave}
@@ -337,7 +350,7 @@ const Options: React.FC = () => {
           <Tabs.Content value="jobDescription" className="bg-white p-6">
             <JobDescriptionTab onStatusChange={setStatus} />
           </Tabs.Content>
-          
+
           <Tabs.Content value="settings" className="bg-white p-6">
             <div className="space-y-6">
               <DebugSettings />

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-shadow */
+/* eslint-disable no-alert */
 import * as React from 'react';
 import * as Label from '@radix-ui/react-label';
 import { Input } from '@components/ui/input';
@@ -13,6 +15,7 @@ import {
 } from '@components/ui/dialog';
 import JsonProfileImport from '../JsonProfileImport';
 import PdfProfileImport from '../PdfProfileImport';
+import { UserProfileForm } from '@/types';
 
 // Enhanced debounce function that includes a cancel method
 const enhancedDebounce = <F extends (...args: any[]) => any>(
@@ -40,24 +43,6 @@ const enhancedDebounce = <F extends (...args: any[]) => any>(
     cancel: () => void;
   };
 };
-
-// Define the form profile type (strings for form fields)
-export interface UserProfileForm {
-  name: string;
-  title: string;
-  email: string;
-  phone: string;
-  location: string;
-  linkedin: string;
-  github: string;
-  website: string;
-  summary: string;
-  skills: string;
-  experience: string;
-  education: string;
-  certifications: string;
-  languages: string;
-}
 
 interface ManualProfileInputProps {
   profile: UserProfileForm;
@@ -90,6 +75,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
 }) => {
   // State for editing individual entries
   const [newSkill, setNewSkill] = React.useState<string>('');
+  const [newCourse, setNewCourse] = React.useState<string>('');
   const [newExperienceItem, setNewExperienceItem] = React.useState({
     company: '',
     title: '',
@@ -100,6 +86,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
     institution: '',
     degree: '',
     date: '',
+    relevantCourses: '',
   });
 
   // Edit states
@@ -298,6 +285,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                 institution: '',
                 degree: '',
                 date: '',
+                relevantCourses: '',
               });
 
               // Add an empty item
@@ -307,6 +295,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                   institution: '',
                   degree: '',
                   date: '',
+                  relevantCourses: '',
                 });
 
                 const updatedProfile = {
@@ -347,8 +336,8 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
               strokeLinejoin="round"
               className="mr-1"
             >
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             Add Education
           </button>
@@ -410,6 +399,19 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                         placeholder="e.g., 2018 - 2022"
                         className="mb-3"
                       />
+                      <TextareaField
+                        label="Relevant Courses"
+                        value={newEducationItem.relevantCourses}
+                        onChange={e =>
+                          setNewEducationItem({
+                            ...newEducationItem,
+                            relevantCourses: e.target.value,
+                          })
+                        }
+                        placeholder="e.g., Data Structures, Algorithms, Machine Learning"
+                        className="mb-3"
+                        rows={2}
+                      />
                       <div className="flex justify-end space-x-2">
                         <button
                           type="button"
@@ -446,6 +448,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                               institution: '',
                               degree: '',
                               date: '',
+                              relevantCourses: '',
                             });
                           }}
                           className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
@@ -468,6 +471,8 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                                   institution: newEducationItem.institution,
                                   degree: newEducationItem.degree,
                                   date: newEducationItem.date,
+                                  relevantCourses:
+                                    newEducationItem.relevantCourses,
                                 };
 
                                 educations[index] = newEducation;
@@ -487,6 +492,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                                   institution: '',
                                   degree: '',
                                   date: '',
+                                  relevantCourses: '',
                                 });
                               } catch (error) {
                                 console.error(
@@ -520,6 +526,14 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                           <p className="text-sm text-gray-700">
                             {edu.degree} • {edu.date}
                           </p>
+                          {edu.relevantCourses && (
+                            <p className="text-xs text-gray-600 mt-1">
+                              <span className="font-medium">
+                                Relevant Courses:
+                              </span>{' '}
+                              {edu.relevantCourses}
+                            </p>
+                          )}
                         </div>
                         <div className="flex space-x-1">
                           <button
@@ -531,6 +545,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                                 institution: edu.institution || '',
                                 degree: edu.degree || '',
                                 date: edu.date || '',
+                                relevantCourses: edu.relevantCourses || '',
                               });
                             }}
                             className="text-gray-400 hover:text-blue-500 hover:bg-blue-50 p-1 rounded-full"
@@ -547,8 +562,8 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                               strokeLinecap="round"
                               strokeLinejoin="round"
                             >
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                             </svg>
                           </button>
                           <button
@@ -665,8 +680,8 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
               strokeLinejoin="round"
               className="mr-1"
             >
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             Add Experience
           </button>
@@ -908,8 +923,8 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
                               strokeLinecap="round"
                               strokeLinejoin="round"
                             >
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                             </svg>
                           </button>
                           <button
@@ -1045,6 +1060,78 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
         </div>
       </div>
 
+      {/* Courses Section */}
+      <div className="pt-4 border-t border-gray-200">
+        <Label.Root
+          htmlFor="courses"
+          className="mb-2 block font-medium text-gray-700"
+        >
+          Relevant Courses
+        </Label.Root>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {profile.courses
+            ?.split(',')
+            .filter(c => c.trim())
+            .map((course, index) => (
+              <div
+                // eslint-disable-next-line react/no-array-index-key
+                key={index}
+                className="bg-blue-100 text-gray-800 px-3 py-1 rounded-full flex items-center"
+              >
+                <span className="mr-2">{course.trim()}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const courses = profile.courses
+                      ?.split(',')
+                      .filter(c => c.trim());
+                    courses.splice(index, 1);
+                    const updatedProfile = {
+                      ...profile,
+                      courses: courses.join(', '),
+                    };
+                    onProfileUpdate(updatedProfile);
+                  }}
+                  className="text-red-400 hover:text-red-600 transition-colors"
+                  aria-label={`Remove ${course.trim()} course`}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+        </div>
+        <div className="flex">
+          <Input
+            type="text"
+            id="newCourse"
+            value={newCourse}
+            onChange={e => setNewCourse(e.target.value)}
+            placeholder="Add a course"
+            className="mr-2"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (newCourse.trim()) {
+                const courses = profile.courses
+                  ? profile.courses.split(',').filter(c => c.trim())
+                  : [];
+                courses.push(newCourse.trim());
+                const updatedProfile = {
+                  ...profile,
+                  courses: courses.join(', '),
+                };
+                onProfileUpdate(updatedProfile);
+                setNewCourse('');
+              }
+            }}
+            className="bg-primary-500 hover:bg-primary-600 text-primary-foreground px-4 py-2 rounded shadow-sm transition-colors"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+
       {/* Additional Sections */}
       <div className="pt-4 border-t border-gray-200 space-y-4">
         <div>
@@ -1114,6 +1201,17 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
           />
 
           <TextareaField
+            label="Courses (JSON format)"
+            id="courses"
+            name="courses"
+            rows={4}
+            value={profile.courses}
+            onChange={onProfileChange}
+            onBlur={onProfileBlur}
+            className="font-mono text-xs"
+          />
+
+          <TextareaField
             label="Certifications (JSON format)"
             id="certifications"
             name="certifications"
@@ -1146,6 +1244,17 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
         onChange={onProfileChange}
         onBlur={onProfileBlur}
         placeholder="Comma-separated list of skills (e.g., JavaScript, React, Node.js)"
+      />
+
+      <TextareaField
+        label="Courses"
+        id="courses"
+        name="courses"
+        rows={3}
+        value={profile.courses}
+        onChange={onProfileChange}
+        onBlur={onProfileBlur}
+        placeholder="Comma-separated list of courses (e.g., Data Structures, Algorithms, Machine Learning)"
       />
     </form>
   );

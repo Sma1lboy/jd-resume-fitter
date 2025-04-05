@@ -1,12 +1,10 @@
-import { UserProfileForm } from '@/components/options/tabs/ManualProfileInput';
-import { UserProfile } from '@/types';
+import { UserProfile, UserProfileForm } from '@/types';
 
 /**
  * Converts a UserProfile object to a UserProfileForm object
  * (converts arrays and objects to strings for form fields)
  */
 export function profileToForm(userProfile: UserProfile): UserProfileForm {
-  
   // Create a base object with all required fields
   return {
     name: userProfile.name || '',
@@ -20,6 +18,9 @@ export function profileToForm(userProfile: UserProfile): UserProfileForm {
     summary: userProfile.summary || '',
     skills: Array.isArray(userProfile.skills)
       ? userProfile.skills.join(', ')
+      : '',
+    courses: Array.isArray(userProfile.courses)
+      ? userProfile.courses.join(', ')
       : '',
     experience: Array.isArray(userProfile.experience)
       ? JSON.stringify(userProfile.experience, null, 2)
@@ -51,7 +52,16 @@ export function formToProfile(profileForm: UserProfileForm): UserProfile {
     github: profileForm.github,
     website: profileForm.website,
     summary: profileForm.summary,
-    skills: profileForm.skills.split(',').map(skill => skill.trim()),
+    skills: profileForm.skills
+      .split(',')
+      .map(skill => skill.trim())
+      .filter(Boolean),
+    courses: profileForm.courses
+      ? profileForm.courses
+          .split(',')
+          .map(course => course.trim())
+          .filter(Boolean)
+      : [],
     experience: profileForm.experience
       ? JSON.parse(profileForm.experience)
       : [],
