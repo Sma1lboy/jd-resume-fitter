@@ -260,6 +260,35 @@ browser.runtime.onMessage.addListener((message: any) => {
       return Promise.resolve({ success: true });
     }
 
+    if (message.action === 'ping') {
+      return Promise.resolve({ success: true, message: 'pong' });
+    }
+
+    if (message.action === 'getCurrentPageInfo') {
+      // Get text content of the page
+      const content = document.body.innerText || '';
+
+      // Check if there's any meaningful content
+      if (!content || content.trim().length < 10) {
+        return Promise.resolve({
+          success: false,
+          error: 'Page has no meaningful content',
+        });
+      }
+
+      return Promise.resolve({
+        success: true,
+        url: window.location.href,
+        title: document.title,
+        content: content,
+      });
+    }
+
+    if (message.action === 'showNotification' && message.message) {
+      showNotification(message.message, message.type || 'success');
+      return Promise.resolve({ success: true });
+    }
+
     return Promise.resolve({
       success: false,
       error: 'Unknown action',
@@ -277,7 +306,7 @@ browser.runtime.onMessage.addListener((message: any) => {
 function initialize() {
   if (isInitialized) return;
   isInitialized = true;
-  
+
   // Notify background script that content script is ready
   try {
     browser.runtime.sendMessage({ action: 'contentScriptReady' });

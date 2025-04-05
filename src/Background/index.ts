@@ -246,6 +246,185 @@ browser.runtime.onMessage.addListener(
         console.debug('Content script ready notification received');
         return Promise.resolve({ success: true });
       }
+
+      // Handle generateResumeFromPage action
+      if (
+        message.action === 'generateResumeFromPage' &&
+        'pageInfo' in message
+      ) {
+        console.debug('Generating resume from current page');
+
+        // Make sure the workflow is not already running
+        if (isWorkflowRunning) {
+          return Promise.resolve({
+            success: false,
+            error: 'Resume generation workflow is already running',
+          });
+        }
+
+        // Set the flag to prevent multiple workflows
+        isWorkflowRunning = true;
+
+        // Create promise to handle the async process
+        return (async () => {
+          try {
+            const pageInfo = message.pageInfo as {
+              url: string;
+              title: string;
+              content: string;
+            };
+
+            // Validate inputs
+            if (!pageInfo || typeof pageInfo !== 'object') {
+              throw new Error('Invalid page info object');
+            }
+
+            // Validate content
+            if (
+              !pageInfo.content ||
+              typeof pageInfo.content !== 'string' ||
+              pageInfo.content.length < 50
+            ) {
+              throw new Error('Page content is too short or invalid');
+            }
+
+            console.info('Processing page: ' + (pageInfo.title || 'Untitled'));
+            console.info(
+              'Content length: ' + pageInfo.content.length + ' characters'
+            );
+
+            // Extract content from the page
+            const jobDescription = pageInfo.content || '';
+
+            // Get user profile and other necessary data
+            const userProfile = await getUserProfile();
+            if (!userProfile) {
+              throw new Error(
+                'User profile not found. Please set up your profile first.'
+              );
+            }
+            console.info('User profile loaded successfully');
+
+            const template = await getResumeTemplate();
+            if (!template) {
+              throw new Error(
+                'Resume template not found. Please set up a template first.'
+              );
+            }
+            console.info('Resume template loaded successfully');
+
+            const settings = await getOpenAISettings();
+            if (!settings.apiKey) {
+              throw new Error(
+                'OpenAI API key not found. Please set up your API key first.'
+              );
+            }
+            console.info('OpenAI settings loaded successfully');
+
+            // Generate resume with page details
+            console.info('Starting AI resume generation...');
+            const result = await generateTailoredResumeSimple(
+              jobDescription,
+              userProfile,
+              template,
+              settings,
+              pageInfo.url,
+              pageInfo.title
+            );
+
+            if (!result) {
+              throw new Error('Resume generation returned no result');
+            }
+
+            if (!result.content) {
+              throw new Error('Resume generation returned empty content');
+            }
+
+            console.info(
+              'Resume generated successfully, content length: ' +
+                result.content.length
+            );
+
+            // Save the resume to storage for later access
+            try {
+              // Get existing resume list
+              const storageData =
+                await browser.storage.local.get('recentlyResumeList');
+              const recentlyResumeList = storageData.recentlyResumeList || [];
+              console.info(
+                'Loaded existing resumes: ' + recentlyResumeList.length
+              );
+
+              // Add new resume to the list (limit to 10 items)
+              const newResume = {
+                id: Date.now().toString(),
+                date: new Date().toISOString(),
+                content: result.content,
+                preview: result.content.substring(0, 100) + '...',
+                jobDescription: jobDescription.substring(0, 100) + '...',
+                pageUrl: pageInfo.url,
+                pageTitle: pageInfo.title,
+                metadata: result.metadata,
+              };
+
+              // Add to beginning of array and limit to 10 items
+              recentlyResumeList.unshift(newResume);
+              if (recentlyResumeList.length > 10) {
+                recentlyResumeList.pop();
+              }
+
+              // Save back to storage
+              await browser.storage.local.set({ recentlyResumeList });
+
+              // Show success notification
+              await showNotification({
+                type: 'basic',
+                iconUrl: browser.runtime.getURL(
+                  'assets/icons/android-chrome-192x192.png'
+                ),
+                title: 'Resume Generator',
+                message: 'Resume generated and saved!',
+              });
+
+              return { success: true };
+            } catch (storageError) {
+              console.error(
+                'Error saving resume to storage: ' + String(storageError)
+              );
+              throw storageError;
+            }
+          } catch (error) {
+            console.error(
+              'Error generating resume from page: ' + String(error)
+            );
+
+            // Show error notification
+            try {
+              await showNotification({
+                type: 'basic',
+                iconUrl: browser.runtime.getURL(
+                  'assets/icons/android-chrome-192x192.png'
+                ),
+                title: 'Resume Generator - Error',
+                message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              });
+            } catch (notificationError) {
+              console.error(
+                'Failed to show error notification: ' +
+                  String(notificationError)
+              );
+            }
+
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            };
+          } finally {
+            // Always reset the workflow flag when done
+            isWorkflowRunning = false;
+          }
+        })();
+      }
     }
 
     // Default response

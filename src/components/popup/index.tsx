@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { browser, Tabs as BrowserTabs } from 'webextension-polyfill-ts';
 import * as Tabs from '@radix-ui/react-tabs';
+import { FileText } from 'lucide-react';
 import Logo from '@/components/Logo';
 import './popup.css';
 
@@ -671,6 +672,166 @@ const Popup: React.FC = () => {
           </a>
         </p>
       </div>
+
+      <button
+        type="button"
+        onClick={async () => {
+          try {
+            // Get current active tab
+            const tabs = await browser.tabs.query({
+              active: true,
+              currentWindow: true,
+            });
+            const currentTab = tabs[0];
+
+            if (!currentTab || !currentTab.id) {
+              throw new Error('No active tab found');
+            }
+
+            // First check if content script is accessible by sending a ping message
+            try {
+              // Use a simple ping message to check content script availability
+              await browser.tabs.sendMessage(currentTab.id, { action: 'ping' });
+            } catch (connectionError) {
+              // Content script not accessible, try to inject it
+              console.error(
+                'Cannot access content script, may need to refresh the page:',
+                connectionError
+              );
+
+              // Show notification to user
+              await browser.notifications.create({
+                type: 'basic',
+                iconUrl: browser.runtime.getURL(
+                  'assets/icons/android-chrome-192x192.png'
+                ),
+                title: 'Resume Generator',
+                message:
+                  'Please refresh the page and try again, or navigate to a job description page.',
+              });
+
+              return; // Stop execution
+            }
+
+            // Show loading notification
+            const loadingToastId = `generate-resume-${Date.now()}`;
+            await browser.tabs.sendMessage(currentTab.id, {
+              action: 'showLoadingToast',
+              id: loadingToastId,
+              message: 'Preparing to generate resume...',
+            });
+
+            // Get page info from content script
+            const response = await browser.tabs.sendMessage(currentTab.id, {
+              action: 'getCurrentPageInfo',
+            });
+
+            if (!response || !response.success) {
+              // Hide loading toast
+              await browser.tabs.sendMessage(currentTab.id, {
+                action: 'hideLoadingToast',
+                id: loadingToastId,
+              });
+
+              throw new Error(
+                response?.error || 'Failed to get page information'
+              );
+            }
+
+            // Check if content is empty or too short
+            if (!response.content || response.content.length < 50) {
+              // Hide loading toast
+              await browser.tabs.sendMessage(currentTab.id, {
+                action: 'hideLoadingToast',
+                id: loadingToastId,
+              });
+
+              // Show notification
+              await browser.tabs.sendMessage(currentTab.id, {
+                action: 'showNotification',
+                message:
+                  'Page content is too short. Please navigate to a job description page.',
+                type: 'error',
+              });
+
+              return;
+            }
+
+            // Update loading notification
+            await browser.tabs.sendMessage(currentTab.id, {
+              action: 'updateLoadingToast',
+              id: loadingToastId,
+              message: 'Generating resume from current page...',
+            });
+
+            // Call background script to handle AIsimple workflow
+            const result = await browser.runtime.sendMessage({
+              action: 'generateResumeFromPage',
+              pageInfo: {
+                url: response.url,
+                title: response.title,
+                content: response.content,
+              },
+            });
+
+            // Hide loading notification
+            await browser.tabs.sendMessage(currentTab.id, {
+              action: 'hideLoadingToast',
+              id: loadingToastId,
+            });
+
+            if (!result || !result.success) {
+              throw new Error(result?.error || 'Failed to generate resume');
+            }
+
+            // Show success notification
+            await browser.tabs.sendMessage(currentTab.id, {
+              action: 'showNotification',
+              message: 'Resume generated successfully!',
+              type: 'success',
+            });
+
+            // Reload recent resumes
+            await loadRecentResumes();
+          } catch (error) {
+            console.error('Error generating resume from current page:', error);
+            // Try to show error notification
+            try {
+              const tabs = await browser.tabs.query({
+                active: true,
+                currentWindow: true,
+              });
+              const currentTab = tabs[0];
+              if (currentTab && currentTab.id) {
+                try {
+                  // Try to send message to content script
+                  await browser.tabs.sendMessage(currentTab.id, {
+                    action: 'showNotification',
+                    message: `Error: ${error.message || 'Failed to generate resume'}`,
+                    type: 'error',
+                  });
+                } catch (contentScriptError) {
+                  // If content script is not accessible, use browser notification
+                  await browser.notifications.create({
+                    type: 'basic',
+                    iconUrl: browser.runtime.getURL(
+                      'assets/icons/android-chrome-192x192.png'
+                    ),
+                    title: 'Resume Generator - Error',
+                    message: `Error: ${error.message || 'Failed to generate resume'}`,
+                  });
+                }
+              }
+            } catch (notificationError) {
+              console.error('Error showing notification:', notificationError);
+            }
+          }
+        }}
+        className="w-full mt-4 bg-primary-600 hover:bg-primary-700 text-white font-medium py-2.5 px-4 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 flex items-center justify-center"
+      >
+        <FileText className="size-4 mr-2" />
+        Generate Resume from Current Page
+      </button>
     </div>
   );
 };

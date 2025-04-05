@@ -27,28 +27,28 @@ export const Modal: React.FC<ModalProps> = ({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
               />
             </Dialog.Overlay>
             <Dialog.Content asChild>
               <motion.div
                 className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white p-6 shadow-lg focus:outline-none w-[90vw] max-w-2xl max-h-[85vh] overflow-y-auto"
                 initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ 
-                  opacity: 1, 
+                animate={{
+                  opacity: 1,
                   scale: 1,
-                  transition: { 
+                  transition: {
                     duration: 0.25,
-                    ease: [0.16, 1, 0.3, 1] // Custom ease curve for a nice, smooth entrance
-                  }
+                    ease: [0.16, 1, 0.3, 1], // Custom ease curve for a nice, smooth entrance
+                  },
                 }}
-                exit={{ 
-                  opacity: 0, 
+                exit={{
+                  opacity: 0,
                   scale: 0.95,
-                  transition: { 
+                  transition: {
                     duration: 0.2,
-                    ease: "easeIn" 
-                  }
+                    ease: 'easeIn',
+                  },
                 }}
               >
                 <div className="flex justify-between items-center mb-4">
