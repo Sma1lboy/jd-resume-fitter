@@ -1,11 +1,7 @@
 /* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable no-alert */
 import * as React from 'react';
-import * as Label from '@radix-ui/react-label';
-import { Input } from '@components/ui/input';
-import { Textarea } from '@components/ui/textarea';
-import { InputField, TextareaField } from '@components/ui/form-field';
-import { X, Upload, FileText, Plus, PenSquare } from 'lucide-react';
+import { X, Upload, FileText, Plus, PenSquare, Code } from 'lucide-react';
 import {
   MotionDialog,
   DialogHeader,
@@ -16,6 +12,28 @@ import {
 import JsonProfileImport from '../JsonProfileImport';
 import PdfProfileImport from '../PdfProfileImport';
 import { UserProfileForm } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import {
+  InputField,
+  TextareaField,
+  FormField,
+} from '@/components/ui/form-field';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// Simple Section and SectionHeader components
+const Section: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <div className="border-t border-gray-200 pt-6 mt-6">{children}</div>;
+};
+
+const SectionHeader: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  return (
+    <div className="flex items-center justify-between mb-3">{children}</div>
+  );
+};
 
 // Enhanced debounce function that includes a cancel method
 const enhancedDebounce = <F extends (...args: any[]) => any>(
@@ -101,6 +119,14 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
   const [jsonModalOpen, setJsonModalOpen] = React.useState(false);
   const [pdfModalOpen, setPdfModalOpen] = React.useState(false);
 
+  // State for showing JSON editor section
+  const [showJsonEditor, setShowJsonEditor] = React.useState<boolean>(false);
+
+  // Toggle JSON editor visibility
+  const toggleJsonEditor = () => {
+    setShowJsonEditor(!showJsonEditor);
+  };
+
   // Handle JSON import with modal closing
   const handleJsonImport = () => {
     onImportProfile();
@@ -178,6 +204,12 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
       <div className="border-t border-gray-200 pt-6" />
       {/* Personal Information Section */}
       <div className="space-y-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium text-gray-900">
+            Personal Information
+          </h3>
+        </div>
+
         <InputField
           label="Full Name"
           type="text"
@@ -211,7 +243,7 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
 
           <InputField
             label="Phone"
-            type="text"
+            type="tel"
             id="phone"
             name="phone"
             value={profile.phone}
@@ -228,48 +260,53 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
           value={profile.location}
           onChange={onProfileChange}
           onBlur={onProfileBlur}
+          placeholder="City, State, Country"
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <InputField
-            label="LinkedIn Username"
+            label="LinkedIn"
             type="text"
             id="linkedin"
             name="linkedin"
             value={profile.linkedin}
             onChange={onProfileChange}
             onBlur={onProfileBlur}
+            placeholder="username (without URL)"
           />
 
           <InputField
-            label="GitHub Username"
+            label="GitHub"
             type="text"
             id="github"
             name="github"
             value={profile.github}
             onChange={onProfileChange}
             onBlur={onProfileBlur}
-          />
-
-          <InputField
-            label="Personal Website"
-            type="text"
-            id="website"
-            name="website"
-            value={profile.website}
-            onChange={onProfileChange}
-            onBlur={onProfileBlur}
+            placeholder="username (without URL)"
           />
         </div>
+
+        <InputField
+          label="Website"
+          type="text"
+          id="website"
+          name="website"
+          value={profile.website}
+          onChange={onProfileChange}
+          onBlur={onProfileBlur}
+          placeholder="yourwebsite.com (without http/https)"
+        />
 
         <TextareaField
           label="Professional Summary"
           id="summary"
           name="summary"
-          rows={4}
           value={profile.summary}
           onChange={onProfileChange}
           onBlur={onProfileBlur}
+          placeholder="A brief overview of your professional background, expertise, and career objectives"
+          rows={4}
         />
       </div>
 
@@ -936,12 +973,12 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
 
       {/* Skills Section */}
       <div className="pt-4 border-t border-gray-200">
-        <Label.Root
+        <Label
           htmlFor="skills"
           className="mb-2 block font-medium text-gray-700"
         >
           Skills
-        </Label.Root>
+        </Label>
         <div className="flex flex-wrap gap-2 mb-3">
           {profile.skills
             .split(',')
@@ -1008,12 +1045,12 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
 
       {/* Courses Section */}
       <div className="pt-4 border-t border-gray-200">
-        <Label.Root
+        <Label
           htmlFor="courses"
           className="mb-2 block font-medium text-gray-700"
         >
           Relevant Courses
-        </Label.Root>
+        </Label>
         <div className="flex flex-wrap gap-2 mb-3">
           {profile.courses
             ?.split(',')
@@ -1080,106 +1117,127 @@ const ManualProfileInput: React.FC<ManualProfileInputProps> = ({
 
       {/* Additional Sections */}
       <div className="pt-4 border-t border-gray-200 space-y-4">
-        <div>
-          <TextareaField
-            label="Certifications (JSON format)"
-            id="certifications"
-            name="certifications"
-            rows={3}
-            value={profile.certifications}
-            onChange={onProfileChange}
-            onBlur={onProfileBlur}
-            className="font-mono text-xs"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Enter certifications in JSON format.
-          </p>
-        </div>
-
-        <div>
-          <TextareaField
-            label="Languages (JSON format)"
-            id="languages"
-            name="languages"
-            rows={3}
-            value={profile.languages}
-            onChange={onProfileChange}
-            onBlur={onProfileBlur}
-            className="font-mono text-xs"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Enter languages and proficiency in JSON format.
-          </p>
-        </div>
+        {/* 删除重复的certifications和languages */}
       </div>
 
       {/* Advanced JSON Fields Section */}
-      <div className="border-t border-gray-200 pt-6 mt-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-3">
-          Advanced Fields (JSON Format)
-        </h3>
-        <p className="text-sm text-gray-500 mb-4">
-          The following fields use JSON format for structured data. Only edit
-          these directly if you understand JSON formatting.
-        </p>
+      <Section>
+        <SectionHeader>
+          <h3 className="text-lg font-semibold">
+            Advanced Fields (JSON Format)
+          </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleJsonEditor}
+            className="ml-2"
+          >
+            {showJsonEditor ? (
+              <>
+                <X className="mr-2 h-4 w-4" />
+                Hide JSON Editor
+              </>
+            ) : (
+              <>
+                <Code className="mr-2 h-4 w-4" />
+                Show JSON Editor
+              </>
+            )}
+          </Button>
+        </SectionHeader>
 
-        <div className="space-y-4">
-          <TextareaField
-            label="Experience (JSON format)"
-            id="experience"
-            name="experience"
-            rows={6}
-            value={profile.experience}
-            onChange={onProfileChange}
-            onBlur={onProfileBlur}
-            className="font-mono text-xs"
-          />
-
-          <TextareaField
-            label="Education (JSON format)"
-            id="education"
-            name="education"
-            rows={6}
-            value={profile.education}
-            onChange={onProfileChange}
-            onBlur={onProfileBlur}
-            className="font-mono text-xs"
-          />
-
-          <TextareaField
-            label="Courses (JSON format)"
-            id="courses"
-            name="courses"
-            rows={4}
-            value={profile.courses}
-            onChange={onProfileChange}
-            onBlur={onProfileBlur}
-            className="font-mono text-xs"
-          />
-
-          <TextareaField
-            label="Certifications (JSON format)"
-            id="certifications"
-            name="certifications"
-            rows={4}
-            value={profile.certifications}
-            onChange={onProfileChange}
-            onBlur={onProfileBlur}
-            className="font-mono text-xs"
-          />
-
-          <TextareaField
-            label="Languages (JSON format)"
-            id="languages"
-            name="languages"
-            rows={4}
-            value={profile.languages}
-            onChange={onProfileChange}
-            onBlur={onProfileBlur}
-            className="font-mono text-xs"
-          />
-        </div>
-      </div>
+        {showJsonEditor && (
+          <>
+            <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-sm text-gray-700">
+              <p>
+                The JSON editor below allows for advanced configuration of your
+                profile data. Only use this if you understand JSON formatting.
+              </p>
+            </div>
+            <div className="mb-4">
+              <TextareaField
+                label="Experience (JSON format)"
+                id="experience"
+                placeholder={`[
+  {
+    "company": "Company Name",
+    "title": "Your Title",
+    "date": "Employment Period",
+    "description": ["Responsibility 1", "Achievement 2", "Task 3"]
+  }
+]`}
+                value={profile?.experience ?? ''}
+                onChange={onProfileChange}
+                onBlur={onProfileBlur}
+                className="font-mono text-xs"
+              />
+            </div>
+            <div className="mb-4">
+              <TextareaField
+                label="Education (JSON format)"
+                id="education"
+                placeholder={`[
+  {
+    "institution": "University Name",
+    "degree": "Degree Name",
+    "date": "Study Period",
+    "relevantCourses": "Course 1, Course 2, Course 3"
+  }
+]`}
+                value={profile?.education ?? ''}
+                onChange={onProfileChange}
+                onBlur={onProfileBlur}
+                className="font-mono text-xs"
+              />
+            </div>
+            <div className="mb-4">
+              <TextareaField
+                label="Courses (JSON format)"
+                id="courses"
+                placeholder={`["Course 1", "Course 2", "Course 3"]`}
+                value={profile?.courses ?? ''}
+                onChange={onProfileChange}
+                onBlur={onProfileBlur}
+                className="font-mono text-xs"
+              />
+            </div>
+            <div className="mb-4">
+              <TextareaField
+                label="Certifications (JSON format)"
+                id="certifications"
+                placeholder={`[
+  {
+    "name": "Certification Name",
+    "issuer": "Issuing Organization",
+    "date": "Issue Date",
+    "link": "https://certification-url.com"
+  }
+]`}
+                value={profile?.certifications ?? ''}
+                onChange={onProfileChange}
+                onBlur={onProfileBlur}
+                className="font-mono text-xs"
+              />
+            </div>
+            <div className="mb-4">
+              <TextareaField
+                label="Languages (JSON format)"
+                id="languages"
+                placeholder={`[
+  {
+    "name": "Language Name",
+    "proficiency": "Proficiency Level"
+  }
+]`}
+                value={profile?.languages ?? ''}
+                onChange={onProfileChange}
+                onBlur={onProfileBlur}
+                className="font-mono text-xs"
+              />
+            </div>
+          </>
+        )}
+      </Section>
 
       <TextareaField
         label="Skills"
