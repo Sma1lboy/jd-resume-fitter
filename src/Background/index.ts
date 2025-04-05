@@ -1,5 +1,8 @@
 import { browser, Notifications, Runtime } from 'webextension-polyfill-ts';
-import { generateTailoredResumeSimple } from '@/utils/aiSimpleWorkflow';
+import {
+  generateTailoredResumeSimple,
+  openResumeInOverleaf,
+} from '@/utils/aiSimpleWorkflow';
 import {
   getOpenAISettings,
   getResumeTemplate,
@@ -7,6 +10,7 @@ import {
 } from '@/utils/config';
 
 const CONTEXT_MENU_ID = 'GENERATE_RESUME_SNIPPET';
+const CONTEXT_MENU_OVERLEAF_ID = 'GENERATE_RESUME_OVERLEAF';
 let isWorkflowRunning = false;
 
 // Function to create the context menu
@@ -16,14 +20,21 @@ async function createContextMenu() {
     await browser.contextMenus.removeAll();
     console.info('Removed existing context menus');
 
-    // Create context menu item
+    // Create context menu item for regular resume generation
     browser.contextMenus.create({
       id: CONTEXT_MENU_ID,
-      title: 'Generate Resume Snippet for Job Desc',
+      title: 'Generate Resume for Job Description',
       contexts: ['selection'], // Only show when text is selected
     });
 
-    console.info('Context menu created successfully.');
+    // Create context menu item for Overleaf resume generation
+    browser.contextMenus.create({
+      id: CONTEXT_MENU_OVERLEAF_ID,
+      title: 'Generate and Open in Overleaf',
+      contexts: ['selection'], // Only show when text is selected
+    });
+
+    console.info('Context menus created successfully.');
   } catch (error) {
     console.error('Error creating context menu: ' + String(error));
   }
@@ -67,7 +78,8 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
   // Exit early if workflow is already running or if menu item doesn't match
   if (
     isWorkflowRunning ||
-    info.menuItemId !== CONTEXT_MENU_ID ||
+    (info.menuItemId !== CONTEXT_MENU_ID &&
+      info.menuItemId !== CONTEXT_MENU_OVERLEAF_ID) ||
     !info.selectionText ||
     !tab?.id
   ) {
@@ -85,12 +97,17 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
   // Keep track of the loading notification ID
   const loadingNotificationId = 'resume-generator-loading';
 
+  // Track if this is the Overleaf request
+  const isOverleafRequest = info.menuItemId === CONTEXT_MENU_OVERLEAF_ID;
+
   try {
     // Show loading notification in the content script
     await sendTabMessage(tab.id, {
       action: 'showLoadingToast',
       id: loadingNotificationId,
-      message: 'Generating resume...',
+      message: isOverleafRequest
+        ? 'Generating resume for Overleaf...'
+        : 'Generating resume...',
     });
 
     // Get user profile and other necessary data
@@ -130,7 +147,9 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     await sendTabMessage(tab.id, {
       action: 'updateLoadingToast',
       id: loadingNotificationId,
-      message: 'Creating tailored resume...',
+      message: isOverleafRequest
+        ? 'Creating tailored resume for Overleaf...'
+        : 'Creating tailored resume...',
     });
 
     // Generate resume with page details
@@ -177,21 +196,47 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 
         // Save back to storage
         await browser.storage.local.set({ recentlyResumeList });
+
+        // Open in Overleaf if requested
+        if (isOverleafRequest) {
+          // For Overleaf integration, we need to open in a new tab
+          // Create a popup to handle the Overleaf integration
+          const popupUrl =
+            browser.runtime.getURL('popup.html') +
+            `?action=openInOverleaf&resumeId=${newResume.id}`;
+
+          await browser.windows.create({
+            url: popupUrl,
+            type: 'popup',
+            width: 800,
+            height: 600,
+          });
+
+          // Show notification
+          await showNotification({
+            type: 'basic',
+            iconUrl: browser.runtime.getURL(
+              'assets/icons/android-chrome-192x192.png'
+            ),
+            title: 'Resume Generator',
+            message: 'Opening resume in Overleaf...',
+          });
+        } else {
+          // Show success notification
+          await showNotification({
+            type: 'basic',
+            iconUrl: browser.runtime.getURL(
+              'assets/icons/android-chrome-192x192.png'
+            ),
+            title: 'Resume Generator',
+            message: 'Resume snippet generated and saved!',
+          });
+        }
       } catch (storageError) {
         console.error(
           'Error saving resume to storage: ' + String(storageError)
         );
       }
-
-      // Show success notification
-      await showNotification({
-        type: 'basic',
-        iconUrl: browser.runtime.getURL(
-          'assets/icons/android-chrome-192x192.png'
-        ),
-        title: 'Resume Generator',
-        message: 'Resume snippet generated and copied to clipboard!',
-      });
     } else {
       // Show error notification if no result but no exception
       await showNotification({

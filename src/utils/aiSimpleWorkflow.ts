@@ -4,6 +4,7 @@ import { browser } from 'webextension-polyfill-ts';
 import { z } from 'zod';
 import { OpenAISettings, UserProfile } from '@/types';
 import { logger } from './logger';
+import { openInOverleaf } from './overleafIntegration';
 
 // Schema for UserProfile validation
 const userProfileSchema = z.object({
@@ -255,6 +256,40 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
       `Failed to generate resume: ${error instanceof Error ? error.message : String(error)}`
     );
   }
+}
+
+/**
+ * Opens the generated resume content in Overleaf
+ * @param content LaTeX content to open in Overleaf
+ * @param metadata Job metadata to use for naming the file
+ * @param userName User's name from profile
+ */
+export function openResumeInOverleaf(
+  content: string,
+  metadata?: JobMetadata,
+  userName?: string
+): void {
+  // Generate a descriptive filename based on available information
+  let fileName = 'resume';
+
+  if (userName) {
+    fileName = `${userName.replace(/\s+/g, '_')}_Resume`;
+  }
+
+  if (metadata) {
+    if (metadata.position && metadata.position !== 'Position not specified') {
+      fileName += `_${metadata.position.replace(/\s+/g, '_')}`;
+    }
+
+    if (metadata.company && metadata.company !== 'Unknown Company') {
+      fileName += `_${metadata.company.replace(/\s+/g, '_')}`;
+    }
+  }
+
+  fileName += '.tex';
+
+  // Open in Overleaf
+  openInOverleaf(content, fileName);
 }
 
 /**

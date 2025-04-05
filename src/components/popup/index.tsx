@@ -13,6 +13,8 @@ import {
   parseOpenAISettings,
   stringifyOpenAISettings,
 } from '@/utils/config';
+import { openInOverleaf } from '@/utils/overleafIntegration';
+import { openResumeInOverleaf as aiOpenResumeInOverleaf } from '@/utils/aiSimpleWorkflow';
 
 function openWebPage(url: string): Promise<BrowserTabs.Tab> {
   return browser.tabs.create({ url });
@@ -49,6 +51,10 @@ const Popup: React.FC = () => {
   const [copyStatus, setCopyStatus] = React.useState<{ [key: string]: string }>(
     {}
   );
+  const [deleteStatus, setDeleteStatus] = React.useState<{
+    [key: string]: string;
+  }>({});
+  const [confirmDelete, setConfirmDelete] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const loadSettings = async () => {
@@ -68,9 +74,36 @@ const Popup: React.FC = () => {
       await loadProfile();
       await loadRecentResumes();
       setLoading(false);
+
+      // Check URL query parameters for Overleaf action
+      const urlParams = new URLSearchParams(window.location.search);
+      const action = urlParams.get('action');
+      const resumeId = urlParams.get('resumeId');
+
+      if (action === 'openInOverleaf' && resumeId) {
+        // Find the resume by ID
+        const data = await browser.storage.local.get('recentlyResumeList');
+        if (data.recentlyResumeList) {
+          const resumeList = data.recentlyResumeList;
+          const resume = resumeList.find(r => r.id === resumeId);
+
+          if (resume) {
+            // Use the imported utilities to open in Overleaf
+            if (profile && resume.metadata) {
+              aiOpenResumeInOverleaf(
+                resume.content,
+                resume.metadata,
+                profile.name
+              );
+            } else {
+              openInOverleaf(resume.content, `resume_${resumeId}.tex`);
+            }
+          }
+        }
+      }
     };
     loadData();
-  }, []);
+  }, [profile]); // Added profile as dependency
 
   const loadProfile = async () => {
     try {
@@ -173,8 +206,101 @@ const Popup: React.FC = () => {
   };
   console.log('Settings:', settings);
 
+  // Handle delete button click - show confirmation first
+  const handleDeleteClick = (id: string) => {
+    setConfirmDelete(id);
+  };
+
+  // Confirm and perform deletion
+  const confirmAndDelete = async (id: string) => {
+    try {
+      // Get existing resume list
+      const data = await browser.storage.local.get('recentlyResumeList');
+      if (!data.recentlyResumeList) return;
+
+      // Filter out the resume to delete
+      const updatedResumeList = data.recentlyResumeList.filter(
+        (resume: ResumeItem) => resume.id !== id
+      );
+
+      // Update storage
+      await browser.storage.local.set({
+        recentlyResumeList: updatedResumeList,
+      });
+
+      // Update state
+      setRecentResumes(updatedResumeList);
+
+      // Show temporary status
+      setDeleteStatus({ ...deleteStatus, [id]: 'Deleted!' });
+      setTimeout(() => {
+        setDeleteStatus(prev => {
+          const newStatus = { ...prev };
+          delete newStatus[id];
+          return newStatus;
+        });
+      }, 2000);
+    } catch (error) {
+      console.error('Error deleting resume:', error);
+      setDeleteStatus({ ...deleteStatus, [id]: 'Failed to delete' });
+      setTimeout(() => {
+        setDeleteStatus(prev => {
+          const newStatus = { ...prev };
+          delete newStatus[id];
+          return newStatus;
+        });
+      }, 2000);
+    } finally {
+      setConfirmDelete(null); // Close confirmation dialog
+    }
+  };
+
+  // Cancel deletion
+  const cancelDelete = () => {
+    setConfirmDelete(null);
+  };
+
+  // Add confirmation dialog component
+  const DeleteConfirmation = () => {
+    if (!confirmDelete) return null;
+
+    const resume = recentResumes.find(r => r.id === confirmDelete);
+    if (!resume) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-sm mx-auto">
+          <h3 className="text-lg font-medium mb-2">Confirm Delete</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Are you sure you want to delete this resume? This action cannot be
+            undone.
+          </p>
+          <div className="flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={cancelDelete}
+              className="px-4 py-2 text-sm bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => confirmAndDelete(confirmDelete)}
+              className="px-4 py-2 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-96 p-4 font-sans">
+      {/* Add confirmation dialog */}
+      <DeleteConfirmation />
+
       <h1 className="text-xl font-bold mb-4 text-center text-gray-800 flex items-center justify-center">
         Resume Generator
         <Logo size="6" className="ml-2" />
@@ -358,19 +484,46 @@ const Popup: React.FC = () => {
                         <Badge variant="outline" className="text-xs">
                           {formatDate(resume.date)}
                         </Badge>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            copyResumeToClipboard(resume.content, resume.id)
-                          }
-                          className={`text-xs px-2 py-1 rounded ${
-                            copyStatus[resume.id]
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-primary-100 text-primary-800 hover:bg-primary-200'
-                          }`}
-                        >
-                          {copyStatus[resume.id] || 'Copy'}
-                        </button>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openInOverleaf(
+                                resume.content,
+                                `resume_${new Date().getTime()}.tex`
+                              )
+                            }
+                            className="text-xs px-2 py-1 rounded bg-green-100 text-green-800 hover:bg-green-200"
+                            title="Open in Overleaf"
+                          >
+                            Overleaf
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              copyResumeToClipboard(resume.content, resume.id)
+                            }
+                            className={`text-xs px-2 py-1 rounded ${
+                              copyStatus[resume.id]
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-primary-100 text-primary-800 hover:bg-primary-200'
+                            }`}
+                          >
+                            {copyStatus[resume.id] || 'Copy'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteClick(resume.id)}
+                            className={`text-xs px-2 py-1 rounded ${
+                              deleteStatus[resume.id]
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800 hover:bg-red-200'
+                            }`}
+                            title="Delete this resume"
+                          >
+                            {deleteStatus[resume.id] || 'Delete'}
+                          </button>
+                        </div>
                       </div>
 
                       {resume.metadata && (
