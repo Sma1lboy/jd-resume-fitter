@@ -88,7 +88,8 @@ const Popup: React.FC = () => {
     };
 
     loadData();
-  }, []); // Removed profile dependency as it's no longer needed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadProfile = async () => {
     try {
@@ -106,7 +107,18 @@ const Popup: React.FC = () => {
     try {
       const data = await browser.storage.local.get('recentlyResumeList');
       if (data.recentlyResumeList) {
-        setRecentResumes(data.recentlyResumeList);
+        const validatedResumes = data.recentlyResumeList.map(resume => {
+          if (!resume.date) {
+            console.warn(
+              'Resume missing date, adding current date:',
+              resume.id
+            );
+            return { ...resume, date: new Date().toISOString() };
+          }
+          return resume;
+        });
+
+        setRecentResumes(validatedResumes);
       }
     } catch (error) {
       console.error('Error loading recent resumes:', error);
@@ -142,13 +154,14 @@ const Popup: React.FC = () => {
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      return (
+      const formatted =
         date.toLocaleDateString() +
         ' ' +
-        date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      );
+        date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return formatted;
     } catch (e) {
-      return dateString;
+      console.error('Error formatting date:', e);
+      return dateString || 'No date available';
     }
   };
 
@@ -298,7 +311,7 @@ const Popup: React.FC = () => {
 
   // Get button class name
   const getButtonClassName = (id: string) => {
-    const baseClass = 'text-xs px-2 py-1 rounded';
+    const baseClass = 'text-xs px-2 py-0.5 rounded';
 
     if (deleteStatus[id]) {
       return `${baseClass} bg-green-100 text-green-800`;
@@ -544,21 +557,24 @@ const Popup: React.FC = () => {
             )}
 
             {!loading && recentResumes.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="font-medium text-sm mb-2">
+              <div className="space-y-4">
+                <h3 className="font-medium text-sm mb-3">
                   Recently Generated Resumes
                 </h3>
 
-                <div className="max-h-80 overflow-y-auto scrollbar-invisible pr-1">
+                <div className="max-h-[380px] overflow-y-auto scrollbar-invisible pr-1">
                   {recentResumes.map(resume => (
                     <Card
                       key={resume.id}
-                      className="p-3 shadow-sm hover:shadow-md transition-shadow mb-3"
+                      className="p-3 pb-4 shadow-sm hover:shadow-md transition-shadow mb-3 relative"
                     >
-                      <div className="flex justify-between items-start mb-1">
-                        <Badge variant="outline" className="text-xs">
-                          {formatDate(resume.date)}
-                        </Badge>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center">
+                          <span className="text-xs text-gray-700 mr-1">📅</span>
+                          <Badge variant="outline" className="text-xs">
+                            {formatDate(resume.date)}
+                          </Badge>
+                        </div>
                         <div className="flex gap-1">
                           <button
                             type="button"
@@ -568,7 +584,7 @@ const Popup: React.FC = () => {
                                 `resume_${new Date().getTime()}.tex`
                               )
                             }
-                            className="text-xs px-2 py-1 rounded bg-green-100 text-green-800 hover:bg-green-200"
+                            className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-800 hover:bg-green-200"
                             title="Open in Overleaf"
                           >
                             Overleaf
@@ -578,7 +594,7 @@ const Popup: React.FC = () => {
                             onClick={() =>
                               copyResumeToClipboard(resume.content, resume.id)
                             }
-                            className={`text-xs px-2 py-1 rounded ${
+                            className={`text-xs px-2 py-0.5 rounded ${
                               copyStatus[resume.id]
                                 ? 'bg-green-100 text-green-800'
                                 : 'bg-primary-100 text-primary-800 hover:bg-primary-200'
@@ -586,19 +602,11 @@ const Popup: React.FC = () => {
                           >
                             {copyStatus[resume.id] || 'Copy'}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteClick(resume.id)}
-                            className={getButtonClassName(resume.id)}
-                            title={getButtonTitle(resume.id)}
-                          >
-                            {getButtonText(resume.id)}
-                          </button>
                         </div>
                       </div>
 
                       {resume.metadata && (
-                        <div className="flex flex-wrap gap-1 mb-2">
+                        <div className="flex flex-wrap gap-1 mb-1.5">
                           <Badge
                             variant="secondary"
                             className="text-xs bg-blue-100 text-blue-800 hover:bg-blue-200 px-2 py-0.5"
@@ -623,13 +631,20 @@ const Popup: React.FC = () => {
                         </div>
                       )}
 
-                      <div className="text-xs mb-2 line-clamp-2 text-gray-700">
+                      <div className="text-xs line-clamp-2 text-gray-700 mb-7">
                         <span className="font-medium">Brief Description:</span>{' '}
                         {resume.jobDescription}
                       </div>
 
-                      <div className="text-xs line-clamp-3 text-gray-600 bg-gray-50 p-2 rounded">
-                        {resume.preview}
+                      <div className="absolute bottom-1 right-3 mb-1">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteClick(resume.id)}
+                          className={getButtonClassName(resume.id)}
+                          title={getButtonTitle(resume.id)}
+                        >
+                          {getButtonText(resume.id)}
+                        </button>
                       </div>
                     </Card>
                   ))}
