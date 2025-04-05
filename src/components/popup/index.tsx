@@ -2,6 +2,7 @@ import * as React from 'react';
 import { browser, Tabs as BrowserTabs } from 'webextension-polyfill-ts';
 import * as Tabs from '@radix-ui/react-tabs';
 import Logo from '@/components/Logo';
+import './popup.css';
 
 import { Input } from '@/components/ui/input';
 import { InputField } from '@/components/ui/form-field';
@@ -388,7 +389,7 @@ const Popup: React.FC = () => {
   };
 
   return (
-    <div className="w-96 p-4 font-sans">
+    <div className="w-96 p-4 font-sans popup-container">
       <h1 className="text-xl font-bold mb-4 text-center text-gray-800 flex items-center justify-center">
         Resume Generator
         <Logo size="6" className="ml-2" />
@@ -562,7 +563,7 @@ const Popup: React.FC = () => {
                   Recently Generated Resumes
                 </h3>
 
-                <div className="max-h-[380px] overflow-y-auto scrollbar-invisible pr-1">
+                <div className="max-h-[380px] overflow-y-auto scrollbar-invisible scrollable-content pr-1">
                   {recentResumes.map(resume => (
                     <Card
                       key={resume.id}
