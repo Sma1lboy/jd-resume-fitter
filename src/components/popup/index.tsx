@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { browser, Tabs as BrowserTabs } from 'webextension-polyfill-ts';
 import * as Tabs from '@radix-ui/react-tabs';
-import { FileText } from 'lucide-react';
+import { FileText, Settings } from 'lucide-react';
 import Logo from '@/components/Logo';
 import './popup.css';
 
@@ -408,271 +408,6 @@ const Popup: React.FC = () => {
         </div>
       )}
 
-      <div className="border border-gray-200 rounded overflow-hidden mb-4">
-        <Tabs.Root defaultValue="resumes" className="w-full">
-          <Tabs.List className="flex bg-gray-100 border-b border-gray-200">
-            <Tabs.Trigger
-              value="resumes"
-              className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
-            >
-              Recent Resumes
-            </Tabs.Trigger>
-            <Tabs.Trigger
-              value="profile"
-              className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
-            >
-              Profile
-            </Tabs.Trigger>
-            <Tabs.Trigger
-              value="settings"
-              className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
-            >
-              Settings
-            </Tabs.Trigger>
-          </Tabs.List>
-
-          <div className="bg-white">
-            {/* Settings Tab */}
-            <Tabs.Content value="settings" className="p-4">
-              <InputField
-                label="OpenAI Endpoint"
-                type="text"
-                id="endpoint"
-                name="endpoint"
-                value={settings.endpoint}
-                onChange={handleSettingChange}
-                placeholder="https://api.openai.com/v1"
-                className="mb-3"
-              />
-
-              <InputField
-                label="API Key"
-                type="password"
-                id="apiKey"
-                name="apiKey"
-                value={settings.apiKey}
-                onChange={handleSettingChange}
-                placeholder="sk-..."
-                className="mb-3"
-              />
-
-              <InputField
-                label="Model"
-                type="text"
-                id="model"
-                name="model"
-                value={settings.model}
-                onChange={handleSettingChange}
-                placeholder="e.g., gpt-3.5-turbo, gpt-4, claude-3-opus-20240229"
-                className="mb-3"
-              />
-
-              <button
-                type="button"
-                onClick={saveSettings}
-                className="w-full bg-primary-500 hover:bg-primary-600 text-primary-foreground font-medium py-2 px-4 rounded text-sm focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2"
-              >
-                Save Settings
-              </button>
-            </Tabs.Content>
-
-            {/* Profile Tab */}
-            <Tabs.Content value="profile" className="p-4">
-              {loading && <div className="text-center py-4">Loading...</div>}
-
-              {!loading && !profile && (
-                <div className="text-center py-4">
-                  <p className="mb-3 text-gray-600">
-                    No profile found. Please set up your profile.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => openWebPage('options.html')}
-                    className="bg-primary-500 hover:bg-primary-600 text-primary-foreground font-medium py-2 px-4 rounded text-sm focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2"
-                  >
-                    Set Up Profile
-                  </button>
-                </div>
-              )}
-
-              {!loading && profile && (
-                <div className="space-y-3">
-                  <div className="border-b pb-2">
-                    <h3 className="font-bold text-lg">{profile.name}</h3>
-                    <p className="text-gray-600">{profile.title}</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="font-medium">Email:</span>{' '}
-                      {profile.email}
-                    </div>
-                    <div>
-                      <span className="font-medium">Phone:</span>{' '}
-                      {profile.phone}
-                    </div>
-                    <div>
-                      <span className="font-medium">Location:</span>{' '}
-                      {profile.location}
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <h4 className="font-medium text-sm mb-1">Skills</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {profile.skills.map(skill => (
-                        <span
-                          key={`skill-${skill}`}
-                          className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-1">
-                    <button
-                      type="button"
-                      onClick={() => openWebPage('options.html')}
-                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded text-sm focus:outline-none"
-                    >
-                      Edit Profile
-                    </button>
-                  </div>
-                </div>
-              )}
-            </Tabs.Content>
-          </div>
-
-          {/* Recent Resumes Tab */}
-          <Tabs.Content value="resumes" className="p-4">
-            {loading && <div className="text-center py-4">Loading...</div>}
-
-            {!loading && recentResumes.length === 0 && (
-              <div className="text-center py-4">
-                <p className="mb-3 text-gray-600">
-                  No resumes generated yet. Use the context menu on job
-                  descriptions to generate resumes.
-                </p>
-              </div>
-            )}
-
-            {!loading && recentResumes.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="font-medium text-sm mb-3">
-                  Recently Generated Resumes
-                </h3>
-
-                <div className="max-h-[380px] overflow-y-auto scrollbar-invisible scrollable-content pr-1">
-                  {recentResumes.map(resume => (
-                    <Card
-                      key={resume.id}
-                      className="p-3 pb-4 shadow-sm hover:shadow-md transition-shadow mb-3 relative"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center">
-                          <span className="text-xs text-gray-700 mr-1">📅</span>
-                          <Badge variant="outline" className="text-xs">
-                            {formatDate(resume.date)}
-                          </Badge>
-                        </div>
-                        <div className="flex gap-1">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openInOverleaf(
-                                resume.content,
-                                `resume_${new Date().getTime()}.tex`
-                              )
-                            }
-                            className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-800 hover:bg-green-200"
-                            title="Open in Overleaf"
-                          >
-                            Overleaf
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              copyResumeToClipboard(resume.content, resume.id)
-                            }
-                            className={`text-xs px-2 py-0.5 rounded ${
-                              copyStatus[resume.id]
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-primary-100 text-primary-800 hover:bg-primary-200'
-                            }`}
-                          >
-                            {copyStatus[resume.id] || 'Copy'}
-                          </button>
-                        </div>
-                      </div>
-
-                      {resume.metadata && (
-                        <div className="flex flex-wrap gap-1 mb-1.5">
-                          <Badge
-                            variant="secondary"
-                            className="text-xs bg-blue-100 text-blue-800 hover:bg-blue-200 px-2 py-0.5"
-                          >
-                            {resume.metadata.company}
-                          </Badge>
-                          <Badge
-                            variant="secondary"
-                            className="text-xs bg-purple-100 text-purple-800 hover:bg-purple-200 px-2 py-0.5"
-                          >
-                            {resume.metadata.position}
-                          </Badge>
-                          {resume.metadata.industry && (
-                            <Badge
-                              variant="secondary"
-                              className="text-xs bg-green-100 text-green-800 hover:bg-green-200 px-2 py-0.5"
-                            >
-                              {resume.metadata.industry}
-                            </Badge>
-                          )}
-                          {renderSkillBadges(resume.metadata.keySkills)}
-                        </div>
-                      )}
-
-                      <div className="text-xs line-clamp-2 text-gray-700 mb-7">
-                        <span className="font-medium">Brief Description:</span>{' '}
-                        {resume.jobDescription}
-                      </div>
-
-                      <div className="absolute bottom-1 right-3 mb-1">
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteClick(resume.id)}
-                          className={getButtonClassName(resume.id)}
-                          title={getButtonTitle(resume.id)}
-                        >
-                          {getButtonText(resume.id)}
-                        </button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-          </Tabs.Content>
-        </Tabs.Root>
-      </div>
-
-      <div className="text-center text-xs text-gray-500 flex max-w-full justify-between align-middle items-center">
-        <p>Resume Generator v1.0.0</p>
-        <p className="mt-1">
-          <a
-            href="#"
-            onClick={e => {
-              e.preventDefault();
-              openWebPage('options.html');
-            }}
-            className="text-primary-600 hover:text-primary-800"
-          >
-            Advanced Settings
-          </a>
-        </p>
-      </div>
-
       <button
         type="button"
         onClick={async () => {
@@ -827,11 +562,287 @@ const Popup: React.FC = () => {
             }
           }
         }}
-        className="w-full mt-4 bg-primary-600 hover:bg-primary-700 text-white font-medium py-2.5 px-4 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 flex items-center justify-center"
+        className="w-full mb-4 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white font-medium py-3 px-4 rounded-md text-sm shadow-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 flex items-center justify-center transition-all"
       >
-        <FileText className="size-4 mr-2" />
+        <FileText className="size-5 mr-2" />
         Generate Resume from Current Page
       </button>
+
+      <div className="border border-gray-200 rounded overflow-hidden mb-4">
+        <Tabs.Root defaultValue="resumes" className="w-full">
+          <Tabs.List className="flex bg-gray-100 border-b border-gray-200">
+            <Tabs.Trigger
+              value="resumes"
+              className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
+            >
+              Recent Resumes
+            </Tabs.Trigger>
+            <Tabs.Trigger
+              value="profile"
+              className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
+            >
+              Profile
+            </Tabs.Trigger>
+            <Tabs.Trigger
+              value="settings"
+              className="px-3 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary-700 data-[state=active]:border-b-2 data-[state=active]:border-primary-500 data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:bg-gray-200"
+            >
+              Settings
+            </Tabs.Trigger>
+          </Tabs.List>
+
+          <div className="bg-white">
+            {/* Settings Tab */}
+            <Tabs.Content value="settings" className="p-4">
+              <InputField
+                label="OpenAI Endpoint"
+                type="text"
+                id="endpoint"
+                name="endpoint"
+                value={settings.endpoint}
+                onChange={handleSettingChange}
+                placeholder="https://api.openai.com/v1"
+                className="mb-3"
+              />
+
+              <InputField
+                label="API Key"
+                type="password"
+                id="apiKey"
+                name="apiKey"
+                value={settings.apiKey}
+                onChange={handleSettingChange}
+                placeholder="sk-..."
+                className="mb-3"
+              />
+
+              <InputField
+                label="Model"
+                type="text"
+                id="model"
+                name="model"
+                value={settings.model}
+                onChange={handleSettingChange}
+                placeholder="e.g., gpt-3.5-turbo, gpt-4, claude-3-opus-20240229"
+                className="mb-3"
+              />
+
+              <button
+                type="button"
+                onClick={saveSettings}
+                className="w-full bg-primary-500 hover:bg-primary-600 text-primary-foreground font-medium py-2 px-4 rounded text-sm focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2"
+              >
+                Save Settings
+              </button>
+
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => openWebPage('options.html')}
+                  className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded text-sm focus:outline-none"
+                >
+                  <Settings className="size-4" />
+                  Go to Advanced Settings
+                </button>
+              </div>
+            </Tabs.Content>
+
+            {/* Profile Tab */}
+            <Tabs.Content value="profile" className="p-4">
+              {loading && <div className="text-center py-4">Loading...</div>}
+
+              {!loading && !profile && (
+                <div className="text-center py-4">
+                  <p className="mb-3 text-gray-600">
+                    No profile found. Please set up your profile.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => openWebPage('options.html')}
+                    className="bg-primary-500 hover:bg-primary-600 text-primary-foreground font-medium py-2 px-4 rounded text-sm focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2"
+                  >
+                    Set Up Profile
+                  </button>
+                </div>
+              )}
+
+              {!loading && profile && (
+                <div className="space-y-3">
+                  <div className="border-b pb-2">
+                    <h3 className="font-bold text-lg">{profile.name}</h3>
+                    <p className="text-gray-600">{profile.title}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="font-medium">Email:</span>{' '}
+                      {profile.email}
+                    </div>
+                    <div>
+                      <span className="font-medium">Phone:</span>{' '}
+                      {profile.phone}
+                    </div>
+                    <div>
+                      <span className="font-medium">Location:</span>{' '}
+                      {profile.location}
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <h4 className="font-medium text-sm mb-1">Skills</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {profile.skills.map(skill => (
+                        <span
+                          key={`skill-${skill}`}
+                          className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => openWebPage('options.html')}
+                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded text-sm focus:outline-none"
+                    >
+                      Edit Profile
+                    </button>
+                  </div>
+                </div>
+              )}
+            </Tabs.Content>
+          </div>
+
+          {/* Recent Resumes Tab */}
+          <Tabs.Content value="resumes" className="p-4">
+            {loading && <div className="text-center py-4">Loading...</div>}
+
+            {!loading && recentResumes.length === 0 && (
+              <div className="text-center py-4">
+                <p className="mb-3 text-gray-600">
+                  No resumes generated yet. Use the context menu on job
+                  descriptions to generate resumes.
+                </p>
+              </div>
+            )}
+
+            {!loading && recentResumes.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="font-medium text-sm mb-3">
+                  Recently Generated Resumes
+                </h3>
+
+                <div className="max-h-[380px] overflow-y-auto scrollbar-invisible scrollable-content pr-1">
+                  {recentResumes.map(resume => (
+                    <Card
+                      key={resume.id}
+                      className="p-3 pb-4 shadow-sm hover:shadow-md transition-shadow mb-3 relative"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center">
+                          <span className="text-xs text-gray-700 mr-1">📅</span>
+                          <Badge variant="outline" className="text-xs">
+                            {formatDate(resume.date)}
+                          </Badge>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              copyResumeToClipboard(resume.content, resume.id)
+                            }
+                            className={`text-xs px-2 py-0.5 rounded ${
+                              copyStatus[resume.id]
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-primary-100 text-primary-800 hover:bg-primary-200'
+                            }`}
+                          >
+                            {copyStatus[resume.id] || 'Copy'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openInOverleaf(
+                                resume.content,
+                                `resume_${new Date().getTime()}.tex`
+                              )
+                            }
+                            className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-800 hover:bg-green-200"
+                            title="Open in Overleaf"
+                          >
+                            Overleaf
+                          </button>
+                        </div>
+                      </div>
+
+                      {resume.metadata && (
+                        <div className="flex flex-wrap gap-1 mb-1.5">
+                          <Badge
+                            variant="secondary"
+                            className="text-xs bg-blue-100 text-blue-800 hover:bg-blue-200 px-2 py-0.5"
+                          >
+                            {resume.metadata.company}
+                          </Badge>
+                          <Badge
+                            variant="secondary"
+                            className="text-xs bg-purple-100 text-purple-800 hover:bg-purple-200 px-2 py-0.5"
+                          >
+                            {resume.metadata.position}
+                          </Badge>
+                          {resume.metadata.industry && (
+                            <Badge
+                              variant="secondary"
+                              className="text-xs bg-green-100 text-green-800 hover:bg-green-200 px-2 py-0.5"
+                            >
+                              {resume.metadata.industry}
+                            </Badge>
+                          )}
+                          {renderSkillBadges(resume.metadata.keySkills)}
+                        </div>
+                      )}
+
+                      <div className="text-xs line-clamp-2 text-gray-700 mb-7">
+                        <span className="font-medium">Brief Description:</span>{' '}
+                        {resume.jobDescription}
+                      </div>
+
+                      <div className="absolute bottom-1 right-3 mb-1">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteClick(resume.id)}
+                          className={getButtonClassName(resume.id)}
+                          title={getButtonTitle(resume.id)}
+                        >
+                          {getButtonText(resume.id)}
+                        </button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Tabs.Content>
+        </Tabs.Root>
+      </div>
+
+      <div className="text-center text-xs text-gray-500 flex max-w-full justify-between align-middle items-center">
+        <p>Resume Generator v1.0.0</p>
+        <p className="mt-1">
+          <a
+            href="#"
+            onClick={e => {
+              e.preventDefault();
+              openWebPage('options.html');
+            }}
+            className="text-primary-600 hover:text-primary-800"
+          >
+            Advanced Settings
+          </a>
+        </p>
+      </div>
     </div>
   );
 };
