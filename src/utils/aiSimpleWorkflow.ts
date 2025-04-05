@@ -78,8 +78,28 @@ const jobMetadataSchema = z.object({
     .array(z.string())
     .describe('Key requirements or qualifications for the job'),
   keySkills: z
-    .array(z.string())
-    .describe('Most important skills mentioned in the job description'),
+    .object({
+      technical: z
+        .record(z.array(z.string()))
+        .optional()
+        .describe(
+          'Technical skills grouped by category (e.g. programming: [JavaScript, TypeScript])'
+        ),
+      soft: z
+        .array(z.string())
+        .optional()
+        .describe('Soft skills like Communication, Leadership'),
+      domain: z
+        .array(z.string())
+        .optional()
+        .describe('Domain-specific skills like Financial Analysis'),
+      tools: z.array(z.string()).optional().describe('Tools and platforms'),
+      uncategorized: z
+        .array(z.string())
+        .optional()
+        .describe('Skills that do not fit in other categories'),
+    })
+    .describe('Categorized key skills mentioned in the job description'),
 });
 
 type JobMetadata = z.infer<typeof jobMetadataSchema>;
@@ -146,13 +166,28 @@ ${pageUrl ? `Job Posting URL: ${pageUrl}` : ''}
 ${pageTitle ? `Page Title: ${pageTitle}` : ''}
 
 Please analyze the job description and any URL/title information to extract the company name, position title, industry, location, and key requirements. 
+For the keySkills field, categorize skills into appropriate groups:
+- technical: Group technical skills by category (e.g. "programming", "databases", "cloud", etc.)
+- soft: Include soft skills like communication, teamwork, etc.
+- domain: Include domain-specific skills related to the industry
+- tools: List specific tools, platforms or software mentioned
+- uncategorized: Any other skills that don't fit neatly into other categories
+
 If you cannot determine the company name with confidence, use "Unknown Company" or make an educated guess and add "(estimated)" after it.`,
       temperature: 0.1,
       system: `You are an expert job analyzer specializing in extracting key information from job postings.
 Your task is to extract structured information including company name, position, industry, location, and key requirements.
+
+For skills categorization:
+1. Technical skills should be grouped by category - e.g. "programming": ["JavaScript", "TypeScript"], "databases": ["MongoDB", "PostgreSQL"]  
+2. Soft skills include communication, leadership, teamwork, problem-solving abilities
+3. Domain skills are specific to the industry like "Financial Analysis" or "Healthcare Compliance"
+4. Tools category includes specific software, platforms or frameworks mentioned
+5. Uncategorized is for skills that don't fit elsewhere
+
 If information is not explicitly mentioned, make reasonable inferences based on context but never make up data.
 For company names, try to extract from both the URL and job description. Many job boards have URL patterns like example.com/company-name/job-title.
-For key requirements and skills, focus on the most important 5-7 qualifications mentioned.`,
+For key requirements, focus on the most important 5-7 qualifications mentioned.`,
     });
 
     return metadata as JobMetadata;
@@ -164,7 +199,13 @@ For key requirements and skills, focus on the most important 5-7 qualifications 
       industry: 'Unknown',
       location: 'Not specified',
       keyRequirements: [],
-      keySkills: [],
+      keySkills: {
+        technical: {},
+        soft: [],
+        domain: [],
+        tools: [],
+        uncategorized: [],
+      },
     };
   }
 }

@@ -14,7 +14,6 @@ import {
   stringifyOpenAISettings,
 } from '@/utils/config';
 import { openInOverleaf } from '@/utils/overleafIntegration';
-import { openResumeInOverleaf as aiOpenResumeInOverleaf } from '@/utils/aiSimpleWorkflow';
 
 function openWebPage(url: string): Promise<BrowserTabs.Tab> {
   return browser.tabs.create({ url });
@@ -35,7 +34,17 @@ interface ResumeItem {
     industry: string;
     location: string;
     keyRequirements: string[];
-    keySkills: string[];
+    // Improved skills structure with categorization
+    keySkills: {
+      // Group skills by category
+      technical?: {
+        [category: string]: string[]; // e.g. "programming": ["JavaScript", "TypeScript"]
+      };
+      soft?: string[]; // Soft skills like "Communication", "Leadership"
+      domain?: string[]; // Domain-specific skills like "Financial Analysis"
+      tools?: string[]; // Tools and platforms
+      uncategorized?: string[]; // Skills that don't fit in other categories
+    };
   };
 }
 
@@ -54,7 +63,9 @@ const Popup: React.FC = () => {
   const [deleteStatus, setDeleteStatus] = React.useState<{
     [key: string]: string;
   }>({});
-  const [confirmDelete, setConfirmDelete] = React.useState<string | null>(null);
+  const [pendingDeleteIds, setPendingDeleteIds] = React.useState<{
+    [key: string]: number;
+  }>({});
 
   React.useEffect(() => {
     const loadSettings = async () => {
@@ -74,36 +85,10 @@ const Popup: React.FC = () => {
       await loadProfile();
       await loadRecentResumes();
       setLoading(false);
-
-      // Check URL query parameters for Overleaf action
-      const urlParams = new URLSearchParams(window.location.search);
-      const action = urlParams.get('action');
-      const resumeId = urlParams.get('resumeId');
-
-      if (action === 'openInOverleaf' && resumeId) {
-        // Find the resume by ID
-        const data = await browser.storage.local.get('recentlyResumeList');
-        if (data.recentlyResumeList) {
-          const resumeList = data.recentlyResumeList;
-          const resume = resumeList.find(r => r.id === resumeId);
-
-          if (resume) {
-            // Use the imported utilities to open in Overleaf
-            if (profile && resume.metadata) {
-              aiOpenResumeInOverleaf(
-                resume.content,
-                resume.metadata,
-                profile.name
-              );
-            } else {
-              openInOverleaf(resume.content, `resume_${resumeId}.tex`);
-            }
-          }
-        }
-      }
     };
+
     loadData();
-  }, [profile]); // Added profile as dependency
+  }, []); // Removed profile dependency as it's no longer needed
 
   const loadProfile = async () => {
     try {
@@ -204,34 +189,56 @@ const Popup: React.FC = () => {
     // Only update state, don't save to storage
     setSettings(updatedSettings);
   };
-  console.log('Settings:', settings);
+  // Only print simple values to avoid circular references
+  console.log('Settings updated:', {
+    endpoint: settings.endpoint,
+    model: settings.model,
+    apiKeyLength: settings.apiKey ? settings.apiKey.length : 0,
+  });
 
-  // Handle delete button click - show confirmation first
-  const handleDeleteClick = (id: string) => {
-    setConfirmDelete(id);
-  };
-
-  // Confirm and perform deletion
-  const confirmAndDelete = async (id: string) => {
+  // Direct delete function without complex confirmation dialog
+  const deleteResumeDirectly = async (id: string) => {
     try {
-      // Get existing resume list
-      const data = await browser.storage.local.get('recentlyResumeList');
-      if (!data.recentlyResumeList) return;
+      if (!id) {
+        console.error('Cannot delete: Invalid resume ID');
+        return;
+      }
 
-      // Filter out the resume to delete
-      const updatedResumeList = data.recentlyResumeList.filter(
-        (resume: ResumeItem) => resume.id !== id
+      console.log('Starting deletion for resume ID:', id);
+
+      // Get current resume list
+      const data = await browser.storage.local.get('recentlyResumeList');
+      console.log(
+        'Got resume list from storage',
+        data?.recentlyResumeList?.length || 'none'
       );
 
-      // Update storage
-      await browser.storage.local.set({
-        recentlyResumeList: updatedResumeList,
-      });
+      if (!data.recentlyResumeList || !Array.isArray(data.recentlyResumeList)) {
+        console.error('No valid resume list found in storage');
+        return;
+      }
 
-      // Update state
-      setRecentResumes(updatedResumeList);
+      // Check if resume exists
+      const resumeExists = data.recentlyResumeList.some(r => r.id === id);
+      if (!resumeExists) {
+        console.error('Resume not found with ID:', id);
+        return;
+      }
 
-      // Show temporary status
+      // Filter out the resume to delete
+      const updatedList = data.recentlyResumeList.filter(
+        resume => resume.id !== id
+      );
+      console.log('Filtered resume list, new length:', updatedList.length);
+
+      // Save updated list to storage
+      await browser.storage.local.set({ recentlyResumeList: updatedList });
+      console.log('Saved updated resume list to storage');
+
+      // Update UI state
+      setRecentResumes(updatedList);
+
+      // Show success message
       setDeleteStatus({ ...deleteStatus, [id]: 'Deleted!' });
       setTimeout(() => {
         setDeleteStatus(prev => {
@@ -240,66 +247,135 @@ const Popup: React.FC = () => {
           return newStatus;
         });
       }, 2000);
+
+      console.log('Resume deleted successfully');
     } catch (error) {
-      console.error('Error deleting resume:', error);
-      setDeleteStatus({ ...deleteStatus, [id]: 'Failed to delete' });
-      setTimeout(() => {
-        setDeleteStatus(prev => {
-          const newStatus = { ...prev };
-          delete newStatus[id];
-          return newStatus;
-        });
-      }, 2000);
-    } finally {
-      setConfirmDelete(null); // Close confirmation dialog
+      console.error('Error in deleteResumeDirectly:', error);
     }
   };
 
-  // Cancel deletion
-  const cancelDelete = () => {
-    setConfirmDelete(null);
+  // Two-step delete functionality - first click to confirm, second to execute
+  const handleDeleteClick = (id: string) => {
+    // If already waiting for confirmation, execute the actual deletion
+    if (pendingDeleteIds[id]) {
+      deleteResumeDirectly(id);
+
+      // Clear confirmation state
+      const newPendingIds = { ...pendingDeleteIds };
+      delete newPendingIds[id];
+      setPendingDeleteIds(newPendingIds);
+    } else {
+      // First click, set confirmation state
+      const timestamp = Date.now();
+      setPendingDeleteIds({
+        ...pendingDeleteIds,
+        [id]: timestamp,
+      });
+
+      // Auto-clear confirmation state after 5 seconds
+      setTimeout(() => {
+        setPendingDeleteIds(prev => {
+          const newPendingIds = { ...prev };
+          if (newPendingIds[id] === timestamp) {
+            delete newPendingIds[id];
+          }
+          return newPendingIds;
+        });
+      }, 5000);
+    }
   };
 
-  // Add confirmation dialog component
-  const DeleteConfirmation = () => {
-    if (!confirmDelete) return null;
+  // Get button display text
+  const getButtonText = (id: string) => {
+    if (deleteStatus[id]) {
+      return deleteStatus[id];
+    }
+    if (pendingDeleteIds[id]) {
+      return 'Confirm';
+    }
+    return 'Delete';
+  };
 
-    const resume = recentResumes.find(r => r.id === confirmDelete);
-    if (!resume) return null;
+  // Get button class name
+  const getButtonClassName = (id: string) => {
+    const baseClass = 'text-xs px-2 py-1 rounded';
+
+    if (deleteStatus[id]) {
+      return `${baseClass} bg-green-100 text-green-800`;
+    }
+
+    if (pendingDeleteIds[id]) {
+      return `${baseClass} bg-yellow-500 text-white hover:bg-yellow-600`;
+    }
+
+    return `${baseClass} bg-red-100 text-red-800 hover:bg-red-200`;
+  };
+
+  // Get button title
+  const getButtonTitle = (id: string) => {
+    return pendingDeleteIds[id]
+      ? 'Click again to confirm deletion'
+      : 'Delete this resume';
+  };
+
+  // Helper function to render skill badges
+  const renderSkillBadges = (skills: ResumeItem['metadata']['keySkills']) => {
+    if (!skills) return null;
+
+    // Get all skills in a flat array for display
+    const allSkills: string[] = [];
+
+    // Add technical skills
+    if (skills.technical) {
+      Object.values(skills.technical).forEach(categorySkills => {
+        allSkills.push(...categorySkills.slice(0, 2)); // Limit to 2 skills per category
+      });
+    }
+
+    // Add other skill types
+    if (skills.soft) allSkills.push(...skills.soft.slice(0, 1));
+    if (skills.domain) allSkills.push(...skills.domain.slice(0, 1));
+    if (skills.tools) allSkills.push(...skills.tools.slice(0, 1));
+    if (skills.uncategorized)
+      allSkills.push(...skills.uncategorized.slice(0, 1));
+
+    // Limit to only showing 3 skills
+    const displaySkills = allSkills.slice(0, 3);
+    const remainingCount = Math.max(
+      0,
+      (skills.technical ? Object.values(skills.technical).flat().length : 0) +
+        (skills.soft?.length || 0) +
+        (skills.domain?.length || 0) +
+        (skills.tools?.length || 0) +
+        (skills.uncategorized?.length || 0) -
+        displaySkills.length
+    );
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-3 max-w-xs mx-auto">
-          <h3 className="text-base font-medium mb-1">Confirm Delete</h3>
-          <p className="text-xs text-gray-600 mb-2">
-            Are you sure you want to delete this resume?
-          </p>
-          <div className="flex justify-end space-x-2">
-            <button
-              type="button"
-              onClick={cancelDelete}
-              className="px-3 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => confirmAndDelete(confirmDelete)}
-              className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
+      <>
+        {displaySkills.map(skill => (
+          <Badge
+            key={`skill-${skill}`}
+            variant="secondary"
+            className="text-xs bg-amber-50 text-amber-800 hover:bg-amber-100 px-2 py-0.5"
+          >
+            {skill}
+          </Badge>
+        ))}
+        {remainingCount > 0 && (
+          <Badge
+            variant="secondary"
+            className="text-xs bg-gray-100 text-gray-800 hover:bg-gray-200 px-2 py-0.5"
+          >
+            +{remainingCount}
+          </Badge>
+        )}
+      </>
     );
   };
 
   return (
     <div className="w-96 p-4 font-sans">
-      {/* Add confirmation dialog */}
-      <DeleteConfirmation />
-
       <h1 className="text-xl font-bold mb-4 text-center text-gray-800 flex items-center justify-center">
         Resume Generator
         <Logo size="6" className="ml-2" />
@@ -513,14 +589,10 @@ const Popup: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleDeleteClick(resume.id)}
-                            className={`text-xs px-2 py-1 rounded ${
-                              deleteStatus[resume.id]
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800 hover:bg-red-200'
-                            }`}
-                            title="Delete this resume"
+                            className={getButtonClassName(resume.id)}
+                            title={getButtonTitle(resume.id)}
                           >
-                            {deleteStatus[resume.id] || 'Delete'}
+                            {getButtonText(resume.id)}
                           </button>
                         </div>
                       </div>
@@ -547,26 +619,7 @@ const Popup: React.FC = () => {
                               {resume.metadata.industry}
                             </Badge>
                           )}
-                          {resume.metadata.keySkills &&
-                            resume.metadata.keySkills.length > 0 &&
-                            resume.metadata.keySkills.slice(0, 3).map(skill => (
-                              <Badge
-                                key={`skill-${resume.id}-${skill}`}
-                                variant="secondary"
-                                className="text-xs bg-amber-50 text-amber-800 hover:bg-amber-100 px-2 py-0.5"
-                              >
-                                {skill}
-                              </Badge>
-                            ))}
-                          {resume.metadata.keySkills &&
-                            resume.metadata.keySkills.length > 3 && (
-                              <Badge
-                                variant="secondary"
-                                className="text-xs bg-gray-100 text-gray-800 hover:bg-gray-200 px-2 py-0.5"
-                              >
-                                +{resume.metadata.keySkills.length - 3}
-                              </Badge>
-                            )}
+                          {renderSkillBadges(resume.metadata.keySkills)}
                         </div>
                       )}
 
