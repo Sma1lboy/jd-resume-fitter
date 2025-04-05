@@ -8,7 +8,11 @@ import { InputField } from '@/components/ui/form-field';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { OpenAISettings, UserProfile } from '@/types';
-import { defaultOpenAISettings, parseOpenAISettings, stringifyOpenAISettings } from '@/utils/config';
+import {
+  defaultOpenAISettings,
+  parseOpenAISettings,
+  stringifyOpenAISettings,
+} from '@/utils/config';
 
 function openWebPage(url: string): Promise<BrowserTabs.Tab> {
   return browser.tabs.create({ url });
@@ -21,6 +25,16 @@ interface ResumeItem {
   content: string;
   preview: string;
   jobDescription: string;
+  pageUrl?: string;
+  pageTitle?: string;
+  metadata?: {
+    company: string;
+    position: string;
+    industry: string;
+    location: string;
+    keyRequirements: string[];
+    keySkills: string[];
+  };
 }
 
 const Popup: React.FC = () => {
@@ -56,7 +70,7 @@ const Popup: React.FC = () => {
       setLoading(false);
     };
     loadData();
-  }, []); 
+  }, []);
 
   const loadProfile = async () => {
     try {
@@ -340,7 +354,7 @@ const Popup: React.FC = () => {
                       key={resume.id}
                       className="p-3 shadow-sm hover:shadow-md transition-shadow mb-3"
                     >
-                      <div className="flex justify-between items-start mb-2">
+                      <div className="flex justify-between items-start mb-1">
                         <Badge variant="outline" className="text-xs">
                           {formatDate(resume.date)}
                         </Badge>
@@ -359,11 +373,57 @@ const Popup: React.FC = () => {
                         </button>
                       </div>
 
-                      <div className="text-sm mb-2 line-clamp-2 text-gray-700">
-                        <strong>Job:</strong> {resume.jobDescription}
+                      {resume.metadata && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          <Badge
+                            variant="secondary"
+                            className="text-xs bg-blue-100 text-blue-800 hover:bg-blue-200 px-2 py-0.5"
+                          >
+                            {resume.metadata.company}
+                          </Badge>
+                          <Badge
+                            variant="secondary"
+                            className="text-xs bg-purple-100 text-purple-800 hover:bg-purple-200 px-2 py-0.5"
+                          >
+                            {resume.metadata.position}
+                          </Badge>
+                          {resume.metadata.industry && (
+                            <Badge
+                              variant="secondary"
+                              className="text-xs bg-green-100 text-green-800 hover:bg-green-200 px-2 py-0.5"
+                            >
+                              {resume.metadata.industry}
+                            </Badge>
+                          )}
+                          {resume.metadata.keySkills &&
+                            resume.metadata.keySkills.length > 0 &&
+                            resume.metadata.keySkills.slice(0, 3).map(skill => (
+                              <Badge
+                                key={`skill-${resume.id}-${skill}`}
+                                variant="secondary"
+                                className="text-xs bg-amber-50 text-amber-800 hover:bg-amber-100 px-2 py-0.5"
+                              >
+                                {skill}
+                              </Badge>
+                            ))}
+                          {resume.metadata.keySkills &&
+                            resume.metadata.keySkills.length > 3 && (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs bg-gray-100 text-gray-800 hover:bg-gray-200 px-2 py-0.5"
+                              >
+                                +{resume.metadata.keySkills.length - 3}
+                              </Badge>
+                            )}
+                        </div>
+                      )}
+
+                      <div className="text-xs mb-2 line-clamp-2 text-gray-700">
+                        <span className="font-medium">Brief Description:</span>{' '}
+                        {resume.jobDescription}
                       </div>
 
-                      <div className="text-sm line-clamp-3 text-gray-600 bg-gray-50 p-2 rounded">
+                      <div className="text-xs line-clamp-3 text-gray-600 bg-gray-50 p-2 rounded">
                         {resume.preview}
                       </div>
                     </Card>

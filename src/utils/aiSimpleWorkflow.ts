@@ -1,5 +1,6 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { generateText, generateObject } from 'ai';
+import { browser } from 'webextension-polyfill-ts';
 import { z } from 'zod';
 import { OpenAISettings, UserProfile } from '@/types';
 import { logger } from './logger';
@@ -62,6 +63,26 @@ const userProfileSchema = z.object({
     .describe('Language proficiency'),
 });
 
+// Schema for job metadata extraction
+const jobMetadataSchema = z.object({
+  company: z
+    .string()
+    .describe('Company name extracted from job description or URL'),
+  position: z
+    .string()
+    .describe('Job position/title extracted from job description'),
+  industry: z.string().describe('Industry sector the job belongs to'),
+  location: z.string().describe('Job location if mentioned'),
+  keyRequirements: z
+    .array(z.string())
+    .describe('Key requirements or qualifications for the job'),
+  keySkills: z
+    .array(z.string())
+    .describe('Most important skills mentioned in the job description'),
+});
+
+type JobMetadata = z.infer<typeof jobMetadataSchema>;
+
 /**
  * Create OpenAI provider from settings
  */
@@ -81,9 +102,9 @@ function createProvider(settings: OpenAISettings) {
  * Extract content from a response that contains marker tags
  */
 export function extractMarkedContent(
-  text: string, 
-  startTag: string = '<CONTENT>', 
-  endTag: string = '</CONTENT>'
+  text: string,
+  startTag = '<CONTENT>',
+  endTag = '</CONTENT>'
 ): string {
   if (!text.includes(startTag) || !text.includes(endTag)) {
     return text;
@@ -91,12 +112,60 @@ export function extractMarkedContent(
 
   const startIndex = text.indexOf(startTag) + startTag.length;
   const endIndex = text.indexOf(endTag);
-  
+
   if (startIndex >= 0 && endIndex > startIndex) {
     return text.substring(startIndex, endIndex).trim();
   }
-  
+
   return text;
+}
+
+/**
+ * Extract job metadata from job description and URL
+ */
+export async function extractJobMetadata(
+  jobDescription: string,
+  settings: OpenAISettings,
+  pageUrl?: string,
+  pageTitle?: string
+): Promise<JobMetadata> {
+  try {
+    const provider = createProvider(settings);
+    const modelName = settings.model || 'gpt-4o-mini';
+
+    const { object: metadata } = await generateObject({
+      model: provider(modelName),
+      schema: jobMetadataSchema,
+      prompt: `Extract key job metadata from the following information:
+
+Job Description:
+${jobDescription}
+
+${pageUrl ? `Job Posting URL: ${pageUrl}` : ''}
+${pageTitle ? `Page Title: ${pageTitle}` : ''}
+
+Please analyze the job description and any URL/title information to extract the company name, position title, industry, location, and key requirements. 
+If you cannot determine the company name with confidence, use "Unknown Company" or make an educated guess and add "(estimated)" after it.`,
+      temperature: 0.1,
+      system: `You are an expert job analyzer specializing in extracting key information from job postings.
+Your task is to extract structured information including company name, position, industry, location, and key requirements.
+If information is not explicitly mentioned, make reasonable inferences based on context but never make up data.
+For company names, try to extract from both the URL and job description. Many job boards have URL patterns like example.com/company-name/job-title.
+For key requirements and skills, focus on the most important 5-7 qualifications mentioned.`,
+    });
+
+    return metadata as JobMetadata;
+  } catch (error) {
+    logger.error('Error extracting job metadata: ' + String(error));
+    return {
+      company: 'Unknown Company',
+      position: 'Position not specified',
+      industry: 'Unknown',
+      location: 'Not specified',
+      keyRequirements: [],
+      keySkills: [],
+    };
+  }
 }
 
 /**
@@ -106,8 +175,10 @@ export async function generateTailoredResumeSimple(
   jobDescription: string,
   userProfile: UserProfile,
   template: string,
-  settings: OpenAISettings
-): Promise<string> {
+  settings: OpenAISettings,
+  pageUrl?: string,
+  pageTitle?: string
+): Promise<{ content: string; metadata: JobMetadata }> {
   const prompt = `You are a professional resume optimizer. Create a tailored resume based on the job requirements and candidate profile.
 
 Job Description:
@@ -118,6 +189,9 @@ ${JSON.stringify(userProfile, null, 2)}
 
 Resume Template:
 ${template}
+
+${pageUrl ? `Job Posting URL: ${pageUrl}` : ''}
+${pageTitle ? `Job Title: ${pageTitle}` : ''}
 
 Instructions:
 1. MUST include all critical work experience and skills most relevant to the job description
@@ -145,6 +219,14 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
     const provider = createProvider(settings);
     const modelName = settings.model || 'gpt-4o-mini';
 
+    // Start job metadata extraction in parallel with resume generation
+    const metadataPromise = extractJobMetadata(
+      jobDescription,
+      settings,
+      pageUrl,
+      pageTitle
+    );
+
     const { text } = await generateText({
       model: provider(modelName),
       prompt,
@@ -152,10 +234,26 @@ DO NOT include any text outside the <GENERATE> tags. Your entire response should
       system: `You are an expert resume writer specializing in creating highly tailored, professional resumes. Analyze job descriptions thoroughly and create resumes that perfectly match the requirements.`,
     });
 
-    return extractMarkedContent(text, '<GENERATE>', '</GENERATE>');
+    // Wait for metadata extraction to complete
+    const metadata = await metadataPromise;
+
+    // Return the extracted content from the response
+    const resumeContent = extractMarkedContent(
+      text,
+      '<GENERATE>',
+      '</GENERATE>'
+    );
+
+    // Return both the resume content and metadata
+    return {
+      content: resumeContent,
+      metadata,
+    };
   } catch (error) {
     logger.error('Error generating tailored resume: ' + String(error));
-    throw new Error(`Failed to generate resume: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Failed to generate resume: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
@@ -190,6 +288,8 @@ If a field is not found, use an empty string or array as appropriate.
     return parsedProfile as UserProfile;
   } catch (error) {
     logger.error('Error parsing resume with AI: ' + String(error));
-    throw new Error(`Failed to parse resume: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Failed to parse resume: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
-} 
+}

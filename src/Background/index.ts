@@ -1,6 +1,10 @@
 import { browser, Notifications, Runtime } from 'webextension-polyfill-ts';
 import { generateTailoredResumeSimple } from '@/utils/aiSimpleWorkflow';
-import { getOpenAISettings, getResumeTemplate, getUserProfile } from '@/utils/config';
+import {
+  getOpenAISettings,
+  getResumeTemplate,
+  getUserProfile,
+} from '@/utils/config';
 
 const CONTEXT_MENU_ID = 'GENERATE_RESUME_SNIPPET';
 let isWorkflowRunning = false;
@@ -92,19 +96,36 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     // Get user profile and other necessary data
     const userProfile = await getUserProfile();
     if (!userProfile) {
-      throw new Error('User profile not found. Please set up your profile first.');
+      throw new Error(
+        'User profile not found. Please set up your profile first.'
+      );
     }
 
     const template = await getResumeTemplate();
     if (!template) {
-      throw new Error('Resume template not found. Please set up a template first.');
+      throw new Error(
+        'Resume template not found. Please set up a template first.'
+      );
     }
 
     const settings = await getOpenAISettings();
     if (!settings.apiKey) {
-      throw new Error('OpenAI API key not found. Please set up your API key first.');
+      throw new Error(
+        'OpenAI API key not found. Please set up your API key first.'
+      );
     }
 
+    // Get page details
+    let pageUrl = '';
+    let pageTitle = '';
+
+    if (tab) {
+      pageUrl = tab.url || '';
+      pageTitle = tab.title || '';
+    }
+
+    console.info('pageUrl', pageUrl);
+    console.info('pageTitle', pageTitle);
     // Update progress notification
     await sendTabMessage(tab.id, {
       action: 'updateLoadingToast',
@@ -112,12 +133,14 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
       message: 'Creating tailored resume...',
     });
 
-    // Generate resume
+    // Generate resume with page details
     const result = await generateTailoredResumeSimple(
       info.selectionText,
       userProfile,
       template,
-      settings
+      settings,
+      pageUrl,
+      pageTitle
     );
 
     // Hide loading notification
@@ -126,20 +149,24 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
       id: loadingNotificationId,
     });
 
-    if (result) {
+    if (result && result.content) {
       // Save the resume to storage for later access
       try {
         // Get existing resume list
-        const storageData = await browser.storage.local.get('recentlyResumeList');
+        const storageData =
+          await browser.storage.local.get('recentlyResumeList');
         const recentlyResumeList = storageData.recentlyResumeList || [];
 
         // Add new resume to the list (limit to 10 items)
         const newResume = {
           id: Date.now().toString(),
           date: new Date().toISOString(),
-          content: result,
-          preview: result.substring(0, 100) + '...',
+          content: result.content,
+          preview: result.content.substring(0, 100) + '...',
           jobDescription: info.selectionText.substring(0, 100) + '...',
+          pageUrl,
+          pageTitle,
+          metadata: result.metadata,
         };
 
         // Add to beginning of array and limit to 10 items
@@ -151,13 +178,17 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         // Save back to storage
         await browser.storage.local.set({ recentlyResumeList });
       } catch (storageError) {
-        console.error('Error saving resume to storage: ' + String(storageError));
+        console.error(
+          'Error saving resume to storage: ' + String(storageError)
+        );
       }
 
       // Show success notification
       await showNotification({
         type: 'basic',
-        iconUrl: browser.runtime.getURL('assets/icons/android-chrome-192x192.png'),
+        iconUrl: browser.runtime.getURL(
+          'assets/icons/android-chrome-192x192.png'
+        ),
         title: 'Resume Generator',
         message: 'Resume snippet generated and copied to clipboard!',
       });
@@ -165,7 +196,9 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
       // Show error notification if no result but no exception
       await showNotification({
         type: 'basic',
-        iconUrl: browser.runtime.getURL('assets/icons/android-chrome-192x192.png'),
+        iconUrl: browser.runtime.getURL(
+          'assets/icons/android-chrome-192x192.png'
+        ),
         title: 'Resume Generator - Error',
         message: 'Failed to generate resume snippet. Please try again.',
       });
@@ -178,19 +211,25 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
         id: loadingNotificationId,
       });
     } catch (toastError) {
-      console.error('Error hiding loading toast after error: ' + String(toastError));
+      console.error(
+        'Error hiding loading toast after error: ' + String(toastError)
+      );
     }
 
     // Show error notification
     try {
       await showNotification({
         type: 'basic',
-        iconUrl: browser.runtime.getURL('assets/icons/android-chrome-192x192.png'),
+        iconUrl: browser.runtime.getURL(
+          'assets/icons/android-chrome-192x192.png'
+        ),
         title: 'Resume Generator - Error',
         message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
     } catch (notificationError) {
-      console.error('Failed to show error notification: ' + String(notificationError));
+      console.error(
+        'Failed to show error notification: ' + String(notificationError)
+      );
     }
   } finally {
     // Always reset the workflow flag when done
@@ -207,7 +246,7 @@ browser.runtime.onMessage.addListener(
         return Promise.resolve({ success: true });
       }
     }
-    
+
     // Default response
     return Promise.resolve({ success: false });
   }
