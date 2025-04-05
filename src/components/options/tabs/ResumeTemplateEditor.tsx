@@ -1,99 +1,157 @@
 import * as React from 'react';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { generateText } from 'ai';
 import { TextareaField } from '@components/ui/form-field';
-import { loadResumeTemplate, saveResumeTemplate } from '@utils/aiWorkflow';
+import {
+  loadResumeTemplate,
+  saveResumeTemplate,
+  loadOpenAISettings,
+} from '@utils/aiWorkflow';
+import { logger } from '@utils/logger';
+import { Button } from '@/components/ui/button';
 
 interface ResumeTemplateEditorProps {
   onStatusChange: (status: string) => void;
 }
 
 // Default LaTeX template
-const defaultTemplate = `\\documentclass[11pt,a4paper]{article}
+const defaultTemplate = `\\documentclass[letterpaper,11pt]{article}
 
-% Packages
-\\usepackage[margin=0.75in]{geometry}
-\\usepackage{hyperref}
-\\usepackage{fontawesome}
+\\usepackage{latexsym}
+\\usepackage[empty]{fullpage}
 \\usepackage{titlesec}
+\\usepackage{marvosym}
+\\usepackage[usenames,dvipsnames]{color}
+\\usepackage{verbatim}
 \\usepackage{enumitem}
-\\usepackage{xcolor}
+\\usepackage[hidelinks]{hyperref}
+\\usepackage{fancyhdr}
+\\usepackage[english]{babel}
+\\usepackage{tabularx}
+\\input{glyphtounicode}
 
-% Define colors
-\\definecolor{primary}{RGB}{70, 130, 180}
-\\definecolor{secondary}{RGB}{128, 128, 128}
+\\pagestyle{fancy}
+\\fancyhf{}
+\\fancyfoot{}
+\\renewcommand{\\headrulewidth}{0pt}
+\\renewcommand{\\footrulewidth}{0pt}
 
-% Format section headings
-\\titleformat{\\section}{\\normalfont\\Large\\bfseries}{}{0em}{\\color{primary}}[\\titlerule]
-\\titlespacing*{\\section}{0pt}{*1.5}{*1}
+\\addtolength{\\oddsidemargin}{-0.5in}
+\\addtolength{\\evensidemargin}{-0.5in}
+\\addtolength{\\textwidth}{1in}
+\\addtolength{\\topmargin}{-.5in}
+\\addtolength{\\textheight}{1.0in}
 
-% Remove page numbers
-\\pagestyle{empty}
+\\urlstyle{same}
+
+\\raggedbottom
+\\raggedright
+\\setlength{\\tabcolsep}{0in}
+
+\\titleformat{\\section}{
+\\vspace{-4pt}\\scshape\\raggedright\\large
+}{}{0em}{}[\\color{black}\\titlerule \\vspace{-5pt}]
+
+\\pdfgentounicode=1
+
+\\newcommand{\\resumeItem}[1]{
+\\item\\small{
+{#1 \\vspace{-1pt}}
+}
+}
+
+\\newcommand{\\resumeSubheading}[4]{
+\\vspace{-2pt}\\item
+\\begin{tabular*}{0.97\\textwidth}[t]{l@{\\extracolsep{\\fill}}r}
+\\textbf{#1} & #2 \\\\
+\\textit{\\small#3} & \\textit{\\small #4} \\\\
+\\end{tabular*}\\vspace{-7pt}
+}
+
+\\newcommand{\\resumeSubSubheading}[2]{
+\\item
+\\begin{tabular*}{0.97\\textwidth}{l@{\\extracolsep{\\fill}}r}
+\\textit{\\small#1} & \\textit{\\small #2} \\\\
+\\end{tabular*}\\vspace{-7pt}
+}
+
+\\newcommand{\\resumeProjectHeading}[2]{
+\\item
+\\begin{tabular*}{0.97\\textwidth}{l@{\\extracolsep{\\fill}}r}
+\\small#1 & \\textit{\\small #2} \\\\
+\\end{tabular*}\\vspace{-5pt}
+}
+
+\\newcommand{\\resumeSubItem}[1]{\\resumeItem{#1}\\vspace{-4pt}}
+
+\\renewcommand\\labelitemii{$\\vcenter{\\hbox{\\tiny$\\bullet$}}$}
+
+\\newcommand{\\resumeSubHeadingListStart}{\\begin{itemize}[leftmargin=0.15in, label={}]}
+\\newcommand{\\resumeSubHeadingListEnd}{\\end{itemize}}
+\\newcommand{\\resumeItemListStart}{\\begin{itemize}}
+\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-5pt}}
 
 \\begin{document}
 
-% Header with name and contact info
 \\begin{center}
-    {\\LARGE \\textbf{{{name}}}}\\\\[0.3em]
-    {\\large {title}}\\\\[0.5em]
-    {\\small
-    \\faEnvelope\\ \\href{mailto:{email}}{{email}} $|$
-    \\faPhone\\ {phone} $|$
-    \\faMapMarker\\ {location}
-    {{#if linkedin}}
-    $|$ \\faLinkedin\\ \\href{https://www.linkedin.com/in/{linkedin}}{linkedin}
-    {{/if}}
-    {{#if github}}
-    $|$ \\faGithub\\ \\href{https://github.com/{github}}{github}
-    {{/if}}
-    {{#if website}}
-    $|$ \\faGlobe\\ \\href{https://{website}}{{website}}
-    {{/if}}
-    }
+\\textbf{\\Huge \\scshape {{name}}} \\\\ \\vspace{1pt}
+\\small
+\\href{sms:{{phone}}}{{{phone}}} $|$
+\\href{mailto:{{email}}}{{{email}}} $|$
+\\href{https://www.linkedin.com/in/{{linkedin}}}{\\underline{{{linkedin}}}} $|$
+\\href{https://github.com/{{github}}}{\\underline{{{github}}}}
 \\end{center}
 
-% Summary
-\\section{Professional Summary}
-{summary}
-
-% Skills
-\\section{Skills}
-{{#each skills}}
-{{this}}{{#unless @last}}, {{/unless}}
-{{/each}}
-
-% Experience
-\\section{Experience}
-{{#each experience}}
-\\textbf{{company}} \\hfill {{date}}\\\\
-\\textit{{title}}\\\\
-\\begin{itemize}[leftmargin=*,nosep]
-{{#each description}}
-    \\item {{{this}}}
-{{/each}}
-\\end{itemize}
-{{/each}}
-
-% Education
 \\section{Education}
+\\resumeSubHeadingListStart
 {{#each education}}
-\\textbf{{institution}} \\hfill {{date}}\\\\
-\\textit{{degree}}\\\\
+\\resumeSubheading
+{{{institution}}}{{{location}}}
+{{{degree}}}{{{date}}}
 {{/each}}
+\\resumeSubHeadingListEnd
+
+\\section{Experience}
+\\resumeSubHeadingListStart
+{{#each experience}}
+\\resumeSubheading
+{{{title}}}{{{location}}}
+{{{company}}}{{{date}}}
+\\resumeItemListStart
+{{#each description}}
+\\resumeItem{{{this}}}
+{{/each}}
+\\resumeItemListEnd
+{{/each}}
+\\resumeSubHeadingListEnd
+
+\\section{Skills}
+\\begin{itemize}[leftmargin=0.15in, label={}]
+\\small{\\item{
+\\textbf{Skills}: {{skills}}
+}}
+\\end{itemize}
 
 {{#if certifications}}
-% Certifications
 \\section{Certifications}
+\\resumeSubHeadingListStart
 {{#each certifications}}
-\\textbf{{name}} \\hfill {{date}}\\\\
-\\textit{{issuer}}\\\\
+\\resumeSubheading
+{{{name}}}{{{date}}}
+{{{issuer}}}{}
 {{/each}}
+\\resumeSubHeadingListEnd
 {{/if}}
 
 {{#if languages}}
-% Languages
 \\section{Languages}
+\\begin{itemize}[leftmargin=0.15in, label={}]
+\\small{\\item{
 {{#each languages}}
-{{language}} ({{proficiency}}){{#unless @last}}, {{/unless}}
+{{name}} ({{proficiency}}){{#unless @last}}, {{/unless}}
 {{/each}}
+}}
+\\end{itemize}
 {{/if}}
 
 \\end{document}`;
@@ -103,6 +161,7 @@ const ResumeTemplateEditor: React.FC<ResumeTemplateEditorProps> = ({
 }) => {
   const [template, setTemplate] = React.useState<string>('');
   const [loading, setLoading] = React.useState<boolean>(true);
+  const [isGenerating, setIsGenerating] = React.useState<boolean>(false);
 
   // Load template on component mount
   React.useEffect(() => {
@@ -117,7 +176,7 @@ const ResumeTemplateEditor: React.FC<ResumeTemplateEditorProps> = ({
           setTemplate(defaultTemplate);
         }
       } catch (error) {
-        console.error('Error loading resume template:', error);
+        logger.error('Error loading resume template:', error);
       } finally {
         setLoading(false);
       }
@@ -125,6 +184,122 @@ const ResumeTemplateEditor: React.FC<ResumeTemplateEditorProps> = ({
 
     loadTemplate();
   }, []);
+
+  // Generate new LaTeX template from current template or resume text
+  const generateTemplateFromCurrent = async () => {
+    try {
+      setIsGenerating(true);
+      onStatusChange('Analyzing input and generating LaTeX template...');
+
+      // Check if current template is empty
+      if (!template.trim()) {
+        onStatusChange(
+          'Error: Current input is empty. Please enter text first.'
+        );
+        setIsGenerating(false);
+        return;
+      }
+
+      // Load OpenAI settings
+      const settings = await loadOpenAISettings();
+      if (!settings.apiKey) {
+        onStatusChange(
+          'Error: OpenAI API key not found. Please set up your API key first.'
+        );
+        setIsGenerating(false);
+        return;
+      }
+
+      // Create an OpenAI compatible provider using ai-sdk
+      const provider = createOpenAICompatible({
+        name: 'resumeTemplateProvider',
+        baseURL: settings.endpoint,
+        apiKey: settings.apiKey,
+      });
+
+      // Determine if input is likely a LaTeX template or resume text
+      const isLikelyLatex =
+        template.includes('\\documentclass') ||
+        template.includes('\\begin{document}') ||
+        template.includes('\\usepackage');
+
+      // Prepare system message and prompt based on input type
+      const systemMessage = isLikelyLatex
+        ? `You are a LaTeX resume template generator. Your task is to improve or refine an existing LaTeX template.
+Return ONLY the complete LaTeX code without any explanations or comments outside the code.`
+        : `You are a LaTeX resume template generator. Your task is to convert resume text into a professional LaTeX template.
+Create a template that uses Handlebars-style variables like {{name}}, {{email}}, etc. for data insertion.
+Return ONLY the complete LaTeX code without any explanations or comments outside the code.`;
+
+      // Create prompt based on input type
+      const prompt = isLikelyLatex
+        ? `I have this LaTeX resume template that I'd like you to improve or refine:
+
+${template}
+
+Please create an enhanced version of this template with:
+- Better formatting and structure
+- Improved visual layout
+- More professional styling
+- Maintain compatibility with Handlebars-style variables ({{name}}, {{email}}, etc.)
+- Keep the same basic sections but feel free to reorganize or enhance them
+
+Return ONLY the complete LaTeX code of the improved template.`
+        : `I have this resume text that I'd like you to convert into a professional LaTeX template:
+
+${template}
+
+Please create a LaTeX template based on this resume with:
+- Professional formatting and structure
+- Clean visual layout
+- Proper section organization (education, experience, skills, etc.)
+- Use Handlebars-style variables for dynamic content ({{name}}, {{email}}, {{phone}}, etc.)
+- Include appropriate LaTeX packages and commands
+
+Return ONLY the complete LaTeX code of the template.`;
+
+      // Generate the template using generateText
+      const result = await generateText({
+        model: provider(settings.model),
+        prompt,
+        system: systemMessage,
+        temperature: 0.3,
+        maxTokens: 4000,
+      });
+
+      if (result) {
+        // Extract the text from the result
+        let templateText;
+        if (typeof result === 'object' && result.text) {
+          templateText = await result.text;
+        } else if (typeof result === 'string') {
+          templateText = result;
+        } else {
+          templateText = String(result);
+        }
+
+        // Clean any markdown code block formatting if present
+        const cleanTemplate = templateText
+          .replace(/```latex\s+|\s+```|```\s+|\s+```/g, '')
+          .trim();
+
+        setTemplate(cleanTemplate);
+        await saveResumeTemplate(cleanTemplate);
+        onStatusChange(
+          isLikelyLatex
+            ? 'LaTeX template successfully enhanced!'
+            : 'Resume text successfully converted to LaTeX template!'
+        );
+      } else {
+        onStatusChange('Error generating template. Please try again.');
+      }
+    } catch (error) {
+      logger.error('Error generating template:', error);
+      onStatusChange('Error generating template. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   // Save template
   const handleSaveTemplate = async () => {
@@ -136,7 +311,7 @@ const ResumeTemplateEditor: React.FC<ResumeTemplateEditorProps> = ({
         onStatusChange('Error saving resume template');
       }
     } catch (error) {
-      console.error('Error saving resume template:', error);
+      logger.error('Error saving resume template:', error);
       onStatusChange('Error saving resume template');
     }
   };
@@ -150,7 +325,7 @@ const ResumeTemplateEditor: React.FC<ResumeTemplateEditorProps> = ({
           onStatusChange('Template auto-saved');
           setTimeout(() => onStatusChange(''), 2000);
         } catch (error) {
-          console.error('Error auto-saving template:', error);
+          logger.error('Error auto-saving template:', error);
         }
       }, 1000);
 
@@ -188,10 +363,27 @@ const ResumeTemplateEditor: React.FC<ResumeTemplateEditorProps> = ({
           Resume Template Editor
         </h2>
         <p className="text-gray-600 mb-4">
-          Edit your LaTeX resume template below. The template uses
-          Handlebars-style syntax for variable substitution (e.g., {'{name}'},{' '}
-          {'{email}'}).
+          Edit your LaTeX resume template below. If you don't have your own
+          template, you can use our default template or convert from your
+          existing resume.
         </p>
+        <div className="flex flex-wrap gap-3 mb-4">
+          <Button
+            onClick={generateTemplateFromCurrent}
+            disabled={isGenerating}
+            className="bg-primary-500 hover:bg-primary-600 text-white"
+          >
+            {isGenerating
+              ? 'Generating...'
+              : 'Generate Template from Current Input'}
+          </Button>
+          <Button
+            onClick={() => setTemplate(defaultTemplate)}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700"
+          >
+            Reset to Default
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -207,79 +399,48 @@ const ResumeTemplateEditor: React.FC<ResumeTemplateEditorProps> = ({
             className="font-mono text-sm"
           />
 
-          <div className="flex justify-end">
-            <button
-              type="button"
+          <div className="flex justify-end gap-4">
+            <Button
               onClick={handleSaveTemplate}
-              className="bg-primary-500 hover:bg-primary-600 text-primary-foreground px-4 py-2 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2"
+              className="bg-primary-500 hover:bg-primary-600 text-primary-foreground"
             >
               Save Template
-            </button>
+            </Button>
           </div>
 
           <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
             <h3 className="font-medium text-gray-700 mb-2">
-              Template Variables
+              How to Prepare Your Resume Template
             </h3>
-            <p className="text-sm text-gray-600 mb-2">
-              The following variables are available in your template:
-            </p>
-            <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1">
-              <li>
-                <code className="bg-gray-100 px-1 rounded">{'{name}'}</code> -
-                Your full name
-              </li>
-              <li>
-                <code className="bg-gray-100 px-1 rounded">{'{title}'}</code> -
-                Your professional title
-              </li>
-              <li>
-                <code className="bg-gray-100 px-1 rounded">{'{email}'}</code> -
-                Your email address
-              </li>
-              <li>
-                <code className="bg-gray-100 px-1 rounded">{'{phone}'}</code> -
-                Your phone number
-              </li>
-              <li>
-                <code className="bg-gray-100 px-1 rounded">{'{location}'}</code>{' '}
-                - Your location
-              </li>
-              <li>
-                <code className="bg-gray-100 px-1 rounded">{'{linkedin}'}</code>{' '}
-                - Your LinkedIn username
-              </li>
-              <li>
-                <code className="bg-gray-100 px-1 rounded">{'{github}'}</code> -
-                Your GitHub username
-              </li>
-              <li>
-                <code className="bg-gray-100 px-1 rounded">{'{website}'}</code>{' '}
-                - Your website URL
-              </li>
-              <li>
-                <code className="bg-gray-100 px-1 rounded">{'{summary}'}</code>{' '}
-                - Your professional summary
-              </li>
-              <li>
-                <code className="bg-gray-100 px-1 rounded">
-                  {'{#each skills}}'}
-                </code>{' '}
-                - Loop through skills
-              </li>
-              <li>
-                <code className="bg-gray-100 px-1 rounded">
-                  {'{#each experience}}'}
-                </code>{' '}
-                - Loop through experience items
-              </li>
-              <li>
-                <code className="bg-gray-100 px-1 rounded">
-                  {'{#each education}}'}
-                </code>{' '}
-                - Loop through education items
-              </li>
-            </ul>
+            <div className="text-sm text-gray-600 space-y-3">
+              <p>You can prepare your resume template in several ways:</p>
+              <ol className="list-decimal pl-5 space-y-2">
+                <li>
+                  <strong>Generate from current input</strong>: Enter your
+                  existing resume text or a LaTeX template, then click the
+                  "Generate Template from Current Input" button to automatically
+                  create or improve your template.
+                </li>
+                <li>
+                  <strong>Use the default template</strong>: Click the "Reset to
+                  Default" button to use our professional template.
+                </li>
+                <li>
+                  <strong>Customize the template</strong>: If you're familiar
+                  with LaTeX, you can directly edit the template code above to
+                  customize your resume style. The template uses
+                  Handlebars-style syntax (e.g.,{' '}
+                  <code className="bg-gray-100 px-1 rounded">{'{{name}}'}</code>
+                  ) for variable substitution.
+                </li>
+              </ol>
+              <p className="mt-2">
+                <strong>Tip</strong>: If you use a custom template, make sure to
+                include variables like name, email, phone, skills, education,
+                experience, etc., so the system can correctly populate your
+                personal information.
+              </p>
+            </div>
           </div>
         </>
       )}
