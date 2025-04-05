@@ -743,7 +743,6 @@ const Popup: React.FC = () => {
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex items-center">
-                          <span className="text-xs text-gray-700 mr-1">📅</span>
                           <Badge variant="outline" className="text-xs">
                             {formatDate(resume.date)}
                           </Badge>

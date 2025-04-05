@@ -8,7 +8,7 @@
     "48": "assets/icons/android-chrome-192x192.png",
     "128": "assets/icons/android-chrome-512x512.png"
   },
-  "description": "Generate tailored resumes based on job descriptions",
+  "description": "Create tailored resumes for job applications using OpenAI API based on job descriptions",
   "homepage_url": "https://github.com/Sma1lboy/jd-resume-fitter",
   "short_name": "ResumeGen",
   "permissions": [
@@ -23,8 +23,12 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["pdf-worker/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "pdf-worker/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "__chrome|firefox__author": "abhijithvijayan",
@@ -36,7 +40,7 @@
       "id": "{754FB1AD-CC3B-4856-B6A0-7786F8CA9D17}"
     }
   },
-  "__chrome__minimum_chrome_version": "49",
+  "__chrome__minimum_chrome_version": "88",
   "__opera__minimum_opera_version": "36",
   "action": {
     "default_popup": "popup.html",
