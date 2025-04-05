@@ -269,24 +269,23 @@ const Popup: React.FC = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 max-w-sm mx-auto">
-          <h3 className="text-lg font-medium mb-2">Confirm Delete</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Are you sure you want to delete this resume? This action cannot be
-            undone.
+        <div className="bg-white rounded-lg p-3 max-w-xs mx-auto">
+          <h3 className="text-base font-medium mb-1">Confirm Delete</h3>
+          <p className="text-xs text-gray-600 mb-2">
+            Are you sure you want to delete this resume?
           </p>
           <div className="flex justify-end space-x-2">
             <button
               type="button"
               onClick={cancelDelete}
-              className="px-4 py-2 text-sm bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+              className="px-3 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={() => confirmAndDelete(confirmDelete)}
-              className="px-4 py-2 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+              className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
             >
               Delete
             </button>

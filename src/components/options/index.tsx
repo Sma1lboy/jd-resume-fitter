@@ -5,7 +5,7 @@ import { profileToForm, formToProfile } from '@utils/profileConverters';
 import Logo from '@/components/Logo';
 import { UserProfile, UserProfileForm } from '@/types';
 import { ProfileTab, TemplateTab, JobDescriptionTab } from './tabs';
-import DebugSettings from './DebugSettings';
+import OptionsAppSettings from './OptionsAppSettings';
 
 // Improved debounce function that allows input modifications during pending operations
 // and includes a cancel method for flexibility
@@ -352,9 +352,7 @@ const Options: React.FC = () => {
           </Tabs.Content>
 
           <Tabs.Content value="settings" className="bg-white p-6">
-            <div className="space-y-6">
-              <DebugSettings />
-            </div>
+            <OptionsAppSettings />
           </Tabs.Content>
         </Tabs.Root>
       </div>
