@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { formToProfile } from '@utils/profileConverters';
 import { browser } from 'webextension-polyfill-ts';
-import ManualProfileInput from './ManualProfileInput';
 import { UserProfileForm } from '@/types';
+import ManualProfileInput from './ManualProfileInput';
 
 interface ProfileTabProps {
   profile: UserProfileForm;
@@ -70,6 +70,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({
         certifications: '',
         languages: '',
         courses: '',
+        projects: '',
       };
 
       // Update state with empty profile

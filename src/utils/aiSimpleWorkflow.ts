@@ -1,108 +1,15 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { generateText, generateObject } from 'ai';
 import { browser } from 'webextension-polyfill-ts';
-import { z } from 'zod';
-import { OpenAISettings, UserProfile } from '@/types';
+import {
+  OpenAISettings,
+  UserProfile,
+  userProfileSchema,
+  jobMetadataSchema,
+  JobMetadata,
+} from '@/types';
 import { logger } from './logger';
 import { openInOverleaf } from './overleafIntegration';
-
-// Schema for UserProfile validation
-const userProfileSchema = z.object({
-  name: z.string().describe('Full name of the person'),
-  title: z.string().describe('Professional title or role'),
-  email: z.string().describe('Email address'),
-  phone: z.string().describe('Phone number'),
-  location: z.string().describe('Location or address'),
-  linkedin: z.string().optional().describe('LinkedIn profile URL'),
-  github: z.string().optional().describe('GitHub profile URL'),
-  website: z.string().optional().describe('Personal website URL'),
-  summary: z.string().describe('Professional summary or objective'),
-  skills: z.array(z.string()).describe('List of skills'),
-  experience: z
-    .array(
-      z.object({
-        company: z.string().describe('Company name'),
-        title: z.string().describe('Job title'),
-        date: z
-          .string()
-          .describe('Employment period (e.g., "Jan 2020 - Present")'),
-        description: z
-          .array(z.string())
-          .describe('List of responsibilities and achievements'),
-      })
-    )
-    .describe('Work experience'),
-  education: z
-    .array(
-      z.object({
-        institution: z.string().describe('Educational institution name'),
-        degree: z.string().describe('Degree or certification'),
-        date: z.string().describe('Period of study (e.g., "2015 - 2019")'),
-      })
-    )
-    .describe('Educational background'),
-  certifications: z
-    .array(
-      z.object({
-        name: z.string().describe('Certification name'),
-        issuer: z.string().describe('Certification issuer'),
-        date: z.string().describe('Date of certification'),
-      })
-    )
-    .optional()
-    .describe('Professional certifications'),
-  languages: z
-    .array(
-      z.object({
-        language: z.string().describe('Language name'),
-        proficiency: z
-          .string()
-          .describe('Proficiency level (e.g., "Fluent", "Intermediate")'),
-      })
-    )
-    .optional()
-    .describe('Language proficiency'),
-});
-
-// Schema for job metadata extraction
-const jobMetadataSchema = z.object({
-  company: z
-    .string()
-    .describe('Company name extracted from job description or URL'),
-  position: z
-    .string()
-    .describe('Job position/title extracted from job description'),
-  industry: z.string().describe('Industry sector the job belongs to'),
-  location: z.string().describe('Job location if mentioned'),
-  keyRequirements: z
-    .array(z.string())
-    .describe('Key requirements or qualifications for the job'),
-  keySkills: z
-    .object({
-      technical: z
-        .record(z.array(z.string()))
-        .optional()
-        .describe(
-          'Technical skills grouped by category (e.g. programming: [JavaScript, TypeScript])'
-        ),
-      soft: z
-        .array(z.string())
-        .optional()
-        .describe('Soft skills like Communication, Leadership'),
-      domain: z
-        .array(z.string())
-        .optional()
-        .describe('Domain-specific skills like Financial Analysis'),
-      tools: z.array(z.string()).optional().describe('Tools and platforms'),
-      uncategorized: z
-        .array(z.string())
-        .optional()
-        .describe('Skills that do not fit in other categories'),
-    })
-    .describe('Categorized key skills mentioned in the job description'),
-});
-
-type JobMetadata = z.infer<typeof jobMetadataSchema>;
 
 /**
  * Create OpenAI provider from settings
@@ -167,7 +74,7 @@ ${pageTitle ? `Page Title: ${pageTitle}` : ''}
 
 Please analyze the job description and any URL/title information to extract the company name, position title, industry, location, and key requirements. 
 For the keySkills field, categorize skills into appropriate groups:
-- technical: Group technical skills by category (e.g. "programming", "databases", "cloud", etc.)
+- technical: Group technical skills by category (e.g. programming: [JavaScript, TypeScript])
 - soft: Include soft skills like communication, teamwork, etc.
 - domain: Include domain-specific skills related to the industry
 - tools: List specific tools, platforms or software mentioned
@@ -236,11 +143,11 @@ ${pageUrl ? `Job Posting URL: ${pageUrl}` : ''}
 ${pageTitle ? `Job Title: ${pageTitle}` : ''}
 
 Instructions:
-1. MUST include all critical work experience and skills most relevant to the job description
-2. Select and prioritize content based on relevance to the job description
+1. MUST include all critical work experience, projects, and skills most relevant to the job description. Consider the optional 'weight' field provided on experience/project items AND on individual description points to prioritize content (higher weight means more preferred by the user).
+2. Select and prioritize content based on relevance to the job description, including relevant projects. Use the 'weight' field on items and description points as a guide for user preference.
 3. Order technical skills by relevance to the job requirements
 4. Create a compelling professional summary highlighting the candidate's fit for this position
-5. For EACH experience entry, include 3-5 bullet points that demonstrate relevant accomplishments
+5. For EACH experience entry and relevant project entry, include 3-5 bullet points that demonstrate relevant accomplishments. Pay close attention to the weight of individual description points.
 6. Output the COMPLETE resume document that follows the provided template structure
 7. For each experience bullet point, significantly expand with specific technical details, methodologies used, challenges overcome, and implementation approaches
 8. Add detailed context to demonstrate comprehensive understanding of technologies mentioned
@@ -248,6 +155,7 @@ Instructions:
 10. Expand professional summary to include broader context about candidate's technical philosophy and approach
 11. Make the resume appear extremely thorough and perfectly tailored to the job while maintaining professional credibility
 12. Maintain proper formatting but ensure the content appears substantial and comprehensive
+13. Keep the resume concise and aim to fit it within a single page. Prioritize the most impactful information relevant to the job.
 
 IMPORTANT: You MUST wrap your entire output document inside <GENERATE> tags, like this:
 <GENERATE>
@@ -344,24 +252,83 @@ export async function parseResumeWithAISimple(
     const provider = createProvider(settings);
     const modelName = settings.model || 'gpt-4o-mini';
 
+    // The schema now perfectly matches UserProfile, so generateObject should return a compatible type.
     const { object: parsedProfile } = await generateObject({
       model: provider(modelName),
-      schema: userProfileSchema,
+      schema: userProfileSchema, // Use the aligned schema
       prompt: `Parse the following resume text into a structured profile:\n\n${resumeText}`,
       temperature: 0.1,
+      // Update system prompt to reflect all fields including nested weights
       system: `
 You are an expert resume parser. Extract structured information from the resume text including:
-1. Basic information (name, title, contact details)
-2. Skills
-3. Work experience
-4. Education
-5. Other relevant sections (certifications, languages, etc.)
+1. Basic information (name, title, contact details, links)
+2. Professional Summary
+3. Skills
+4. Work Experience (including company, title, date, description points with optional weight, and overall item weight if indicated)
+5. Education (including institution, degree, date, and relevant courses if listed)
+6. Projects (including name, description points with optional weight, technologies, date range, and overall item weight if indicated)
+7. Courses (List of relevant courses taken, separate from education entries)
+8. Certifications (name, issuer, date)
+9. Languages (language, proficiency)
 
-If a field is not found, use an empty string or array as appropriate.
+For description points in experience and projects, extract the text and infer a weight if priority is indicated (e.g., 'Key achievement:', 'Most significant contribution:'). Try to infer an overall weight for experience/project items too if emphasis is placed.
+If a field is not found, omit it or use an empty array/string as appropriate per the schema.
 `,
     });
 
-    return parsedProfile as UserProfile;
+    // Now the generated object should conform to UserProfile,
+    // but we add defaults for required fields just in case the AI misses them despite the schema.
+    const finalProfile: UserProfile = {
+      name: parsedProfile.name ?? '',
+      title: parsedProfile.title ?? '',
+      email: parsedProfile.email ?? '',
+      phone: parsedProfile.phone ?? '',
+      location: parsedProfile.location ?? '',
+      summary: parsedProfile.summary ?? '',
+      skills: parsedProfile.skills ?? [],
+      courses: parsedProfile.courses ?? [], // Ensure courses array exists
+      experience: (parsedProfile.experience ?? []).map(exp => ({
+        company: exp.company ?? '',
+        title: exp.title ?? '',
+        date: exp.date ?? '',
+        description: (exp.description ?? []).map(d => ({
+          text: d.text ?? '',
+          weight: d.weight,
+        })),
+        weight: exp.weight,
+      })),
+      education: (parsedProfile.education ?? []).map(edu => ({
+        institution: edu.institution ?? '',
+        degree: edu.degree ?? '',
+        date: edu.date ?? '',
+        relevantCourses: edu.relevantCourses,
+      })),
+      // Optional fields are assigned directly
+      linkedin: parsedProfile.linkedin,
+      github: parsedProfile.github,
+      website: parsedProfile.website,
+      projects: (parsedProfile.projects ?? []).map(proj => ({
+        name: proj.name ?? '',
+        description: (proj.description ?? []).map(d => ({
+          text: d.text ?? '',
+          weight: d.weight,
+        })),
+        technologies: proj.technologies,
+        dateRange: proj.dateRange,
+        weight: proj.weight,
+      })),
+      certifications: (parsedProfile.certifications ?? []).map(cert => ({
+        name: cert.name ?? '',
+        issuer: cert.issuer ?? '',
+        date: cert.date ?? '',
+      })),
+      languages: (parsedProfile.languages ?? []).map(lang => ({
+        language: lang.language ?? '',
+        proficiency: lang.proficiency ?? '',
+      })),
+    };
+
+    return finalProfile;
   } catch (error) {
     logger.error('Error parsing resume with AI: ' + String(error));
     throw new Error(

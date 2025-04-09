@@ -78,6 +78,7 @@ const Options: React.FC = () => {
     education: '',
     certifications: '',
     languages: '',
+    projects: '',
   });
 
   const [status, setStatus] = React.useState<string>('');
@@ -93,16 +94,56 @@ const Options: React.FC = () => {
     try {
       const data = await browser.storage.local.get('userProfile');
       if (data.userProfile) {
-        const userProfile = JSON.parse(data.userProfile) as UserProfile;
+        // Parse the stored data
+        let userProfile = JSON.parse(data.userProfile) as Partial<UserProfile>; // Parse as Partial initially
 
-        // Convert UserProfile to UserProfileForm using utility function
-        const formattedProfile = profileToForm(userProfile);
+        // Ensure required fields have defaults, especially the newly added 'courses'
+        userProfile = {
+          ...userProfile, // Keep existing data
+          name: userProfile.name ?? '',
+          title: userProfile.title ?? '',
+          email: userProfile.email ?? '',
+          phone: userProfile.phone ?? '',
+          location: userProfile.location ?? '',
+          summary: userProfile.summary ?? '',
+          skills: userProfile.skills ?? [],
+          experience: userProfile.experience ?? [],
+          education: userProfile.education ?? [],
+          courses: userProfile.courses ?? [], // Add default empty array for courses
+          projects: userProfile.projects ?? [], // Add default empty array for projects
+          // Optional fields like linkedin, github, website, certifications, languages are handled
+        };
+
+        // Now convert the guaranteed-to-be-complete UserProfile to UserProfileForm
+        const formattedProfile = profileToForm(userProfile as UserProfile);
 
         setProfile(formattedProfile);
+      } else {
+        // Handle case where no profile exists in storage yet
+        // Optionally set a default empty profile form state here
+        setProfile({
+          name: '',
+          title: '',
+          email: '',
+          phone: '',
+          location: '',
+          linkedin: '',
+          github: '',
+          website: '',
+          summary: '',
+          skills: '',
+          courses: '',
+          experience: '[]', // Default to empty JSON array string
+          education: '[]',
+          projects: '[]',
+          certifications: '[]',
+          languages: '[]',
+        });
       }
     } catch (error) {
       console.error('Error loading profile:', error);
       setStatus('Error loading profile');
+      // Optionally set default empty profile on error too
     }
   };
 
@@ -236,8 +277,9 @@ const Options: React.FC = () => {
           : jsonData.courses || '',
         experience: JSON.stringify(jsonData.experience || [], null, 2),
         education: JSON.stringify(jsonData.education || [], null, 2),
-        certifications: JSON.stringify(jsonData.projects || [], null, 2),
+        certifications: JSON.stringify(jsonData.certifications || [], null, 2),
         languages: JSON.stringify(jsonData.languages || [], null, 2),
+        projects: JSON.stringify(jsonData.projects || [], null, 2),
       };
 
       setProfile(newProfile);

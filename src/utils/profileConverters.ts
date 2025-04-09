@@ -34,6 +34,9 @@ export function profileToForm(userProfile: UserProfile): UserProfileForm {
     languages: Array.isArray(userProfile.languages)
       ? JSON.stringify(userProfile.languages, null, 2)
       : '',
+    projects: Array.isArray(userProfile.projects)
+      ? JSON.stringify(userProfile.projects, null, 2)
+      : '',
   };
 }
 
@@ -70,6 +73,7 @@ export function formToProfile(profileForm: UserProfileForm): UserProfile {
       ? JSON.parse(profileForm.certifications)
       : [],
     languages: profileForm.languages ? JSON.parse(profileForm.languages) : [],
+    projects: profileForm.projects ? JSON.parse(profileForm.projects) : [],
   };
 }
 
